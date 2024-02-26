@@ -1,4 +1,4 @@
-name: 'Commit'
+name: 'Signed Commit'
 description: 'GitHub Action to create signed commits from within a GitHub Action workflow'
 author: 'qoomon'
 branding:
