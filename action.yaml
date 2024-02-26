@@ -5,9 +5,8 @@ branding:
   icon: git-commit
   color: black
 inputs:
-  user:
+  message:
     required: true
-    default: 'bot'
 runs:
   using: "composite"
   steps:
