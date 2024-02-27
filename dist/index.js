@@ -40332,17 +40332,17 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
 
-// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var lib_github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
 var dist = __nccwpck_require__(4083);
 // EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
 var lib = __nccwpck_require__(6255);
 // EXTERNAL MODULE: ./node_modules/@actions/exec/lib/exec.js
 var exec = __nccwpck_require__(1514);
-;// CONCATENATED MODULE: ./lib/github-actions-utils.ts
+;// CONCATENATED MODULE: ./lib/actions.ts
 
 
 
@@ -40395,7 +40395,7 @@ function getYamlInput(name, options) {
  * @param options - optional exec options. See ExecOptions
  * @returns status, stdout and stderr
  */
-async function github_actions_utils_exec(commandLine, options) {
+async function actions_exec(commandLine, options) {
     const result = { status: 0, stdout: '', stderr: '' };
     result.status = await exec.exec(commandLine, undefined, {
         ...options,
@@ -40418,61 +40418,67 @@ var external_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_fs_);
 
 
 
+// see https://github.com/actions/toolkit for more github actions libraries
+
+const input = {
+    token: getInput('token', { required: true }),
+    message: getInput('message', { required: true }),
+};
+const octokit = github.getOctokit(input.token);
 run(async () => {
-    const context = lib_github.context;
-    const input = {
-        token: getInput('token', { required: true }),
-        message: getInput('message', { required: true }),
-    };
-    const github = lib_github.getOctokit(input.token);
-    // --------------------------------------------------------------------------
-    const repositoryNameWithOwner = await github_actions_utils_exec('git remote get-url --push origin')
-        .then(({ stdout }) => stdout.trim().replace(/.*?([^/:]+\/[^/]+?)(?:\.git)?$/, '$1'));
-    const branchName = await github_actions_utils_exec('git branch --show-current')
-        .then(({ stdout }) => stdout.trim());
-    const expectedHeadOid = await github_actions_utils_exec('git rev-parse HEAD')
-        .then(({ stdout }) => stdout.trim());
-    const fileChanges = {
-        additions: await github_actions_utils_exec('git diff --cached --name-only --diff-filter=AM')
-            .then(({ stdout }) => stdout.split('\n').filter(path => path.trim() !== ''))
-            .then((paths) => paths.map((path) => ({
-            path,
-            contents: external_fs_default().readFileSync(path).toString('base64'),
-        }))),
-        deletions: await github_actions_utils_exec('git diff --cached --name-only --diff-filter=D')
-            .then(({ stdout }) => stdout.split('\n').filter(path => path.trim() !== ''))
-            .then((paths) => paths.map((path) => ({ path }))),
-    };
-    const messageLines = input.message.split('\n');
+    // stash changes not staged for commit
+    await actions_exec('git stash push --keep-index');
     const createCommitOnBranchInput = {
         branch: {
-            repositoryNameWithOwner,
-            branchName,
+            repositoryNameWithOwner: await actions_exec('git remote get-url --push origin')
+                .then(({ stdout }) => stdout.trim().replace(/.*?([^/:]+\/[^/]+?)(?:\.git)?$/, '$1')),
+            branchName: await actions_exec('git branch --show-current')
+                .then(({ stdout }) => stdout.trim()),
         },
-        expectedHeadOid,
-        fileChanges,
-        message: {
+        expectedHeadOid: await actions_exec('git rev-parse HEAD')
+            .then(({ stdout }) => stdout.trim()),
+        fileChanges: {
+            additions: await actions_exec('git diff --cached --diff-filter=AM --name-only')
+                .then(({ stdout }) => stdout.split('\n').filter((path) => path.trim() !== ''))
+                .then((paths) => paths.map((path) => ({
+                path,
+                contents: external_fs_default().readFileSync(path).toString('base64'),
+            }))),
+            deletions: await actions_exec('git diff --cached --diff-filter=D --name-only')
+                .then(({ stdout }) => stdout.split('\n').filter((path) => path.trim() !== ''))
+                .then((paths) => paths.map((path) => ({ path }))),
+        },
+        message: await Promise.resolve(input.message)
+            .then((it) => it.split('\n'))
+            .then((messageLines) => ({
             headline: messageLines[0].trim(),
             body: messageLines.slice(1).join('\n').trim() || undefined,
-        },
+        })),
     };
+    if (createCommitOnBranchInput.fileChanges?.additions?.length === 0 &&
+        createCommitOnBranchInput.fileChanges?.deletions?.length === 0) {
+        return core.setFailed(`On branch ${createCommitOnBranchInput.branch.branchName}\n` +
+            'Nothing to commit, working tree clean');
+    }
     console.info('CreateCommitOnBranchInput:', JSON.stringify({
         ...createCommitOnBranchInput,
         fileChanges: {
-            additions: createCommitOnBranchInput.fileChanges.additions.map(({ path }) => path),
-            deletions: createCommitOnBranchInput.fileChanges.deletions,
-        }
+            additions: createCommitOnBranchInput.fileChanges?.additions?.map(({ path }) => path),
+            deletions: createCommitOnBranchInput.fileChanges?.deletions,
+        },
     }, null, 2));
-    // noinspection GraphQLUnresolvedReference
-    const commit = await github.graphql(`mutation ($input: CreateCommitOnBranchInput!) {
-    createCommitOnBranch(input: $input) {
-      commit {
-        oid
+    const commit = await octokit.graphql(`mutation ($input: CreateCommitOnBranchInput!) {
+      createCommitOnBranch(input: $input) {
+        commit {
+          oid
+        }
       }
-    }
-  }`, { input: createCommitOnBranchInput });
-    console.log('Commit:', commit.createCommitOnBranch.commit.oid);
-    await github_actions_utils_exec(`git pull origin ${branchName}`);
+    } `, { input: createCommitOnBranchInput });
+    console.log('Commit:', commit.createCommitOnBranch.commit?.oid);
+    // sync local branch with remote
+    await actions_exec(`git pull origin ${createCommitOnBranchInput.branch.branchName}`);
+    // restore stash changes
+    await actions_exec('git stash pop');
 });
 
 })();
