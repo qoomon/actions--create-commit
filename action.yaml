@@ -3,16 +3,16 @@ description: 'GitHub Action to create signed commits from within a GitHub Action
 author: 'qoomon'
 branding:
   icon: git-commit
-  color: black
+  color: blue
 inputs:
-  message:
+  token:
+    description: 'A GitHub access token'
     required: true
+    default: '${{ github.token }}'
+  message:
+    description: 'The commit message'
+    required: true
+
 runs:
-  using: "composite"
-  steps:
-    - uses: actions/github-script@v7
-      env:
-        INPUT_MESSAGE: ${{ inputs.message }}
-      with:
-        script: |
-          await require('${{ github.action_path }}/github-script.js')({exec, github, context, core})
+  using: 'node20'
+  main: 'dist/index.js'
