@@ -1,7 +1,6 @@
 const fs = require('fs')
-const exec = require('@actions/exec')
 
-module.exports = async ({github}) => {
+module.exports = async ({exec, github}) => {
   const inputMessageLines = process.env.INPUT_MESSAGE.split('\n')
   const message = {
       headline:inputMessageLines[0].trim(),
@@ -58,19 +57,21 @@ module.exports = async ({github}) => {
   console.log('Commit:', commit.createCommitOnBranch.commit.oid)
   
   await execCommand(`git pull origin ${branchName}`)
+
+  // --- Utils ---
+  async function execCommand(command) {
+      const result = {stdout: '', stderr: ''}
+      await exec.exec(command, null, {
+          listeners: {
+              stdout(data) {
+                  result.stdout += data.toString()
+              },
+              stderr(data) {
+                  result.stderr += data.toString()
+              },
+          },
+      })
+      return result
+  }
 }
           
-async function execCommand(command) {
-    const result = {stdout: '', stderr: ''}
-    await exec.exec(command, null, {
-        listeners: {
-            stdout(data) {
-                result.stdout += data.toString()
-            },
-            stderr(data) {
-                result.stderr += data.toString()
-            },
-        },
-    })
-    return result
-}
