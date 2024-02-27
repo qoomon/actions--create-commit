@@ -13,7 +13,7 @@ jobs:
           date > dummy.txt
           git add dummy.txt
 
-      - uses: qoomon/commit@v1
+      - uses: qoomon/actions--commit@v1
         with:
           message: 'work, work'
 ```
