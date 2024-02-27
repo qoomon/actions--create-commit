@@ -2,7 +2,7 @@
 Commits made using this action are automatically signed by GitHub and will be marked as verified in the user interface.
 
 > [!NOTE]
-> **From GitHub Docs** https://docs.github.com/en/graphql/reference/mutations#authorship
+> **GitHub Docs** https://docs.github.com/en/graphql/reference/mutations#authorship
 > 
 > Similar to the web commit interface, this mutation does not support specifying the author or committer of the commit and will not add support for this in the future.
 >
