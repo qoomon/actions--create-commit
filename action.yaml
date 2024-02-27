@@ -15,4 +15,4 @@ runs:
         INPUT_MESSAGE: ${{ inputs.message }}
       with:
         script: |
-          await require('${{ github.action_path }}/github-script.js')({github, context, core})
+          await require('${{ github.action_path }}/github-script.js')({exec, github, context, core})
