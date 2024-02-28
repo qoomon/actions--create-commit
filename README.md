@@ -4,7 +4,7 @@ Commits made using this action are automatically signed by GitHub and will be ma
 ### Example
 ```yaml
 jobs:
-  basic-ubuntu-20:
+  example:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
