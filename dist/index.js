@@ -40428,6 +40428,10 @@ const octokit = github.getOctokit(input.token);
 run(async () => {
     // stash changes not staged for commit
     await actions_exec('git stash push --keep-index');
+    const diffSummary = await actions_exec('git diff --cached --summary');
+    if (diffSummary.stdout.match(/^\s*mode change/m)) {
+        return core.setFailed('File mode changes are not supported.');
+    }
     const createCommitOnBranchInput = {
         branch: {
             repositoryNameWithOwner: await actions_exec('git remote get-url --push origin')
