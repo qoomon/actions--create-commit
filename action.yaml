@@ -4,14 +4,23 @@ author: 'qoomon'
 branding:
   icon: git-commit
   color: blue
+
 inputs:
   token:
     description: 'A GitHub access token'
     required: true
-    default: '${{ github.token }}'
+    default: ${{ github.token }}
+  remoteName:
+    description: 'The remote name to create the commit on'
+    default: 'origin'
   message:
     description: 'The commit message'
-    required: true
+  recommitHead:
+    description: 'If true, the HEAD commit will be re-committed'
+
+outputs:
+  commit:
+    description: 'The SHA of the commit'
 
 runs:
   using: 'node20'

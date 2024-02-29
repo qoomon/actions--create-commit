@@ -1,59 +1,222 @@
-import {exec} from "./actions";
-import {_throw} from "./utils";
+import {exec} from './actions.js'
 
-export async function getGitInfo() {
+/**
+ * Get the current branch name.
+ * @returns branch name
+ */
+export async function getCurrentBranch(): Promise<string> {
+  return await exec('git branch --show-current')
+      .then(({stdout}) => stdout.toString().trim())
+}
 
-  const repository = await exec('git remote get-url --push origin')
-      .then(({stdout}) => stdout.trim().replace(/.*?([^/:]+\/[^/]+?)(?:\.git)?$/, '$1'))
-      .then((repository) => {
-        const repositoryParts = repository.split('/')
-        return {
-          owner: repositoryParts[0],
-          repo: repositoryParts[1],
-        }
-      })
+/**
+ * Get the sha of the given ref.
+ * @param ref - commit ref
+ * @returns sha
+ */
+export async function getRev(ref: string = 'HEAD'): Promise<string> {
+  return await exec('git rev-parse', [ref])
+      .then(({stdout}) => stdout.toString().trim())
+}
 
-  const head = await exec('git rev-parse HEAD')
-      .then(({stdout}) => stdout.trim())
+/**
+ * Get the remote url of the repository.
+ * @param remoteName - remote name
+ * @returns remote url
+ */
+export async function getRemoteUrl(remoteName: string = 'origin'): Promise<string> {
+  return await exec('git remote get-url --push', [remoteName])
+      .then(({stdout}) => stdout.toString().trim())
+}
 
-  const branch = await exec('git branch --show-current')
-      .then(({stdout}) => stdout.trim())
+/**
+ * Get the list of unmerged files.
+ * @returns unmerged files
+ */
+export async function getUnmergedFiles(): Promise<string[]> {
+  return await exec('git diff --name-only --diff-filter=U')
+      .then(({stdout}) => stdout.toString().split('\n').filter(Boolean))
+}
 
-  // TODO only list changed files
-  const diffFileModes = await exec('git ls-files --cached --stage --full-name')
-      .then(({stdout}) => stdout.split('\n').filter((fileInfo) => fileInfo.trim()))
-      .then((fileInfos) => fileInfos.map((fileInfo) => {
-        const fileInfoMatch = fileInfo.match(/^(?<mode>\d{6}) (?<sha>\w{40}) (?<stage>\d)\s+(?<path>.*)$/)
-        if (!fileInfoMatch) throw new Error(`Unexpected file info: ${fileInfo}`)
-        return {
-          mode: fileInfoMatch?.groups?.mode!,
-          path: fileInfoMatch?.groups?.path!,
-        }
-      }).reduce((acc, fileInfo) => {
-        acc[fileInfo.path] = fileInfo
-        return acc
-      }, <Record<string, { mode: string, path: string }>>{}))
+/**
+ * Get the commit details.
+ * @param ref - ref to get the details for.
+ * @returns commit details
+ */
+export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDetails> {
+  const result = <CommitDetails>{}
 
-  const diff = {
-    // --diff-filter= A(Added) M(Modified)
-    additions: await exec('git diff --cached --name-only --diff-filter=AM')
-        .then(({stdout}) => stdout.split('\n').filter((path) => path.trim()))
-        .then((paths) => paths.map((path) => ({
-          path,
-          mode: diffFileModes[path]?.mode ?? _throw(new Error(`File mode not found for ${path}`))
-        }))),
-    // --diff-filter= D(Deleted)
-    deletions: await exec('git diff --cached --name-only --diff-filter=D')
-        .then(({stdout}) => stdout.split('\n').filter((path) => path.trim() !== ''))
-        .then((paths) => paths.map((path) => ({
-          path
-        }))),
+  const fieldsSeparator = '---'
+  const showOutputLines = await exec('git show --raw --cc --diff-filter=AMD', [
+    '--format=' + [ // TODO change to --format
+      'commit:%H%n' +
+      'tree:%T%n' +
+      'parent:%P%n' +
+      'author.name:%aN%n' +
+      'author.email:%aE%n' +
+      'author.date:%ai%n' +
+      'committer.name:%cN%n' +
+      'committer.email:%cE%n' +
+      'committer.date:%ci%n' +
+      'subject:%s%n' +
+      'body:%n' +
+      '%b%n' +
+      fieldsSeparator,
+    ].join(),
+    ref,
+  ])
+      .then(({stdout}) => stdout.toString().split('\n'))
+  const eofBodyIndicatorIndex = showOutputLines.lastIndexOf(fieldsSeparator)
+  const showOutputFieldLines = showOutputLines.slice(0, eofBodyIndicatorIndex)
+  const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1, -1)
+
+  const showFieldLinesIterator = showOutputFieldLines.values()
+  for (const line of showFieldLinesIterator) {
+    const lineMatch = line.match(/^(?<lineValueName>[^:]+):(?<lineValue>.*)$/)
+    if (!lineMatch) throw new Error(`Unexpected field line: ${line}`)
+    const {lineValueName, lineValue} = lineMatch.groups as { lineValueName: string, lineValue: string }
+    switch (lineValueName) {
+      case 'commit':
+        result.sha = lineValue
+        break
+      case 'tree':
+        result.tree = lineValue
+        break
+      case 'parent':
+        result.parents = lineValue.split(' ')
+        break
+      case 'author.name':
+        result.author = result.author ?? {}
+        result.author.name = lineValue
+        break
+      case 'author.email':
+        result.author = result.author ?? {}
+        result.author.email = lineValue
+        break
+      case 'author.date':
+        result.author = result.author ?? {}
+        result.author.date = new Date(lineValue)
+        break
+      case 'committer.name':
+        result.committer = result.committer ?? {}
+        result.committer.name = lineValue
+        break
+      case 'committer.email':
+        result.committer = result.committer ?? {}
+        result.committer.email = lineValue
+        break
+      case 'committer.date':
+        result.committer = result.committer ?? {}
+        result.committer.date = new Date(lineValue)
+        break
+      case 'subject':
+        result.subject = lineValue
+        break
+      case 'body':
+        // read all remaining lines
+        result.body = [...showFieldLinesIterator].join('\n')
+        break
+      default:
+        throw new Error(`Unexpected field: ${lineValueName}`)
+    }
   }
+
+  result.files = showOutputFileLines
+      .map(parseRawFileDiffLine) satisfies RawFileDiff[] as (RawFileDiff & { status: 'A' | 'M' | 'D' })[]
+
+  return result
+}
+
+/**
+ * Get the cached details.
+ * @returns cached details
+ */
+export async function getCacheDetails(): Promise<CacheDetails> {
+  const result = <CacheDetails>{}
+
+  const diffOutputFileLines = await exec('git diff --cached --raw --cc --diff-filter=AMD')
+      .then(({stdout}) => stdout.toString().split('\n').filter(Boolean))
+
+  result.files = diffOutputFileLines
+      .map(parseRawFileDiffLine) satisfies RawFileDiff[] as (RawFileDiff & { status: 'A' | 'M' | 'D' })[]
+
+  return result
+}
+
+/**
+ * Parse a line from the raw diff output.
+ * @param line - line to parse
+ * @returns parsed line
+ */
+function parseRawFileDiffLine(line: string): RawFileDiff {
+  const fileMatch = line.match(/^:+(?:(?<mode>\d{6}) ){2,}(?:\w{7} ){2,}(?<status>[A-Z])\w*\s+(?<path>.*)$/)
+  if (!fileMatch) throw new Error(`Unexpected file line: ${line}`)
 
   return {
-    repository,
-    head,
-    branch,
-    diff,
+    status: fileMatch.groups!.status,
+    mode: fileMatch.groups!.mode,
+    path: fileMatch.groups!.path,
   }
+}
+
+/**
+ * Read the content of the file at the given path.
+ * @param path - path to the file
+ * @param ref - ref to read the file from. If not set, the cached file is read.
+ * @returns file content
+ */
+export async function readFile(path: string, ref?: string): Promise<Buffer> {
+  const object = ref ? `${ref}:${path}` : await getCachedObjectSha(path)
+  console.log('#### object', object.toString())
+
+  return await exec('git cat-file blob', [object], {silent: true})
+      .then(({stdout}) => stdout)
+}
+
+/**
+ * Get the sha of the cached object for the given path.
+ * @param path - path to the file
+ * @returns sha of the cached object
+ */
+async function getCachedObjectSha(path: string) {
+  return await exec('git ls-files --cached --stage', [path], {silent: false})
+      // example output: 100644 5492f6d1d15ac444387259da81d19b74b3f2d4d6 0  dummy.txt
+      .then(({stdout}) => stdout.toString().split(/\s/)[1])
+}
+
+export type CommitDetails = {
+  sha: string
+  tree: string
+  parents: string[]
+  author: {
+    name: string
+    email: string
+    date: Date
+  }
+  committer: {
+    name: string
+    email: string
+    date: Date
+  }
+  subject: string
+  body: string
+  files: {
+    path: string,
+    mode: string
+    status: 'A' | 'M' | 'D'
+  }[]
+}
+
+export type CacheDetails = {
+  files: {
+    path: string,
+    mode: string
+    status: 'A' | 'M' | 'D'
+  }[]
+}
+
+type RawFileDiff = {
+  mode: string
+  path: string
+  status: string
 }

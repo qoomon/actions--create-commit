@@ -19,6 +19,6 @@ jobs:
 ```
 
 ### Inputs
-
-- `message` - the commit message
-  - if multiline first line is used as headline following as body
+- `token` - A GitHub access token
+- `message` - Commit message
+- `recommitHEAD` - Recommit HEAD after commit. Default: false
