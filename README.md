@@ -27,7 +27,7 @@ token:
 message:
   description: 'The commit message'
 recommitHead:
-  description: 'If true, the HEAD commit will be re-committed, instead creating commit of the index changes'
+  description: 'If true, the HEAD commit will be re-committed, instead of creating commit of the index changes'
 remoteName:
   description: 'The remote name to create the commit on'
   required: true
