@@ -1,7 +1,8 @@
 /**
  * Throws an error
- * @param error
+ * @param error - error to throw
+ * @returns never
  */
-export function _throw(error: Error): never {
+export function _throw(error: object | string): never {
   throw error
 }

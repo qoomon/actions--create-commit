@@ -1,72 +1,85 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import {CreateCommitOnBranchInput, CreateCommitOnBranchPayload} from '@octokit/graphql-schema'
 import {exec, getInput, run} from './lib/actions'
 // see https://github.com/actions/toolkit for more github actions libraries
-import fs from 'fs'
-import {getGitInfo} from "./lib/git";
+import {
+  getCommitDetails,
+  getRemoteUrl,
+  getRev,
+  getCacheDetails,
+  readFile,
+  getUnmergedFiles,
+} from './lib/git'
+import {createCommit, CreateCommitArgs, parseRepositoryFromUrl} from './lib/github.js'
 
 const input = {
   token: getInput('token', {required: true})!,
-  message: getInput('message', {required: true})!,
+  remoteName: getInput('remoteName', {required: true}),
+  message: getInput('message', {required: false}),
+  recommitHEAD: getInput('recommitHEAD', {required: false})?.toLowerCase() === 'true' || false,
 }
+
 const octokit = github.getOctokit(input.token)
 
 run(async () => {
-  // stash changes not staged for commit
-  await exec('git stash push --keep-index')
+  const repositoryRemoteUrl = await getRemoteUrl()
+  const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
 
-  const gitInfo = await getGitInfo()
-  console.log('gitInfo: ', JSON.stringify(gitInfo, null, 2))
-  if (!gitInfo.branch) {
-    return core.setFailed('Commit on a detached HEAD is not supported.')
+  let createCommitArgs: CreateCommitArgs
+
+  if (input.recommitHEAD) {
+    const headCommit = await getCommitDetails('HEAD')
+    const messageLines = input.message?.split('\n')
+
+    createCommitArgs = {
+      subject: messageLines?.[0].trim() ??
+          headCommit.subject,
+      body: messageLines?.slice(1).join('\n').trim() ??
+          headCommit.body,
+      parents: headCommit.parents,
+      files: headCommit.files.map((file) => ({
+        ...file,
+        loadContent: async () => readFile(file.path, headCommit.sha),
+      })),
+    }
+  } else {
+    if (!input.message) {
+      core.setFailed('input message is required')
+      return
+    }
+
+    const unmergedFiles = await getUnmergedFiles()
+    if (unmergedFiles.length > 0) {
+      core.setFailed('Committing is not possible because you have unmerged files.')
+      console.error('Unmerged files:', unmergedFiles)
+      return
+    }
+
+    const headCommitSha = await getRev('HEAD')
+    const messageLines = input.message.split('\n')
+    const cache = await getCacheDetails()
+
+    createCommitArgs = {
+      subject: messageLines[0].trim(),
+      body: messageLines.slice(1).join('\n').trim(),
+      parents: [headCommitSha],
+      files: cache.files.map((file) => ({
+        ...file,
+        loadContent: async () => readFile(file.path),
+      })),
+    }
   }
 
-  if (gitInfo.diff.additions?.length === 0 &&
-      gitInfo.diff.deletions?.length === 0) {
-    // TODO maybe ignore
-    return core.setFailed(`On branch ${gitInfo.branch}\n` +
-        'Nothing to commit, working tree clean')
+  core.info('Creating commit ...')
+  if (createCommitArgs.files.length === 0) {
+    core.info('nothing to commit, working tree clean')
+    return
   }
+  const commit = await createCommit(octokit, repository, createCommitArgs)
+  core.setOutput('commit', commit.sha)
 
-  // --------------------------------------------------------------------------
-
-  const diffSummary = await exec('git diff --cached --summary')
-  if (diffSummary.stdout.match(/^\s*mode change/m)) {
-    return core.setFailed('File mode changes are not supported.')
-  }
-
-  const commit = await octokit.graphql<{ createCommitOnBranch: CreateCommitOnBranchPayload }>(
-      `mutation ($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }`,
-      {
-        input: <CreateCommitOnBranchInput>{
-          branch: {
-            repositoryNameWithOwner: `${gitInfo.repository.owner}/${gitInfo.repository.repo}`,
-            branchName: gitInfo.branch,
-          },
-          expectedHeadOid: gitInfo.head,
-          fileChanges: {
-            additions: gitInfo.diff.additions.map(({path}) => ({
-              path,
-              contents: fs.readFileSync(path).toString('base64'),
-            })),
-            deletions: gitInfo.diff.deletions,
-          },
-          message: messageObjectOf(input.message)
-        }
-      })
-  core.debug('Commit: ' + commit.createCommitOnBranch.commit?.oid)
-
-  // sync local branch with remote
-  await exec(`git pull origin ${gitInfo.branch}`)
-  // restore stash changes
-  await exec('git stash pop')
+  core.info('Syncing local repository ...')
+  await exec(`git fetch ${input.remoteName} ${commit.sha}`, undefined)
+  await exec(`git reset --soft ${commit.sha}`, undefined)
 })
 
-function messageObjectOf(message: string) {
-  const messageLines = message.split('\n')
-  return {
-    headline: messageLines.shift()?.trim(),
-    body: messageLines.join('\n').trim() || undefined,
-  }
-}

@@ -40294,35 +40294,6 @@ exports.visitAsync = visitAsync;
 /******/ }
 /******/ 
 /************************************************************************/
-/******/ /* webpack/runtime/compat get default export */
-/******/ (() => {
-/******/ 	// getDefaultExport function for compatibility with non-harmony modules
-/******/ 	__nccwpck_require__.n = (module) => {
-/******/ 		var getter = module && module.__esModule ?
-/******/ 			() => (module['default']) :
-/******/ 			() => (module);
-/******/ 		__nccwpck_require__.d(getter, { a: getter });
-/******/ 		return getter;
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/define property getters */
-/******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__nccwpck_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/hasOwnProperty shorthand */
-/******/ (() => {
-/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -40341,7 +40312,7 @@ var dist = __nccwpck_require__(4083);
 // EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
 var lib = __nccwpck_require__(6255);
 // EXTERNAL MODULE: ./node_modules/@actions/exec/lib/exec.js
-var exec = __nccwpck_require__(1514);
+var lib_exec = __nccwpck_require__(1514);
 ;// CONCATENATED MODULE: ./lib/actions.ts
 
 
@@ -40373,7 +40344,6 @@ function run(action) {
 function getInput(name, options) {
     return core.getInput(name, options) || null;
 }
-/* eslint-disable  @typescript-eslint/no-explicit-any */
 /**
  * Gets the yaml value of an input.
  * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
@@ -40392,94 +40362,355 @@ function getYamlInput(name, options) {
 /**
  * Execute a command and get the output.
  * @param commandLine - command to execute (can include additional args). Must be correctly escaped.
+ * @param args - optional command arguments.
  * @param options - optional exec options. See ExecOptions
  * @returns status, stdout and stderr
  */
-async function actions_exec(commandLine, options) {
-    const result = { status: 0, stdout: '', stderr: '' };
-    result.status = await exec.exec(commandLine, undefined, {
+async function actions_exec(commandLine, args, options) {
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const status = await lib_exec.exec(commandLine, args, {
         ...options,
         listeners: {
             stdout(data) {
-                result.stdout += data.toString();
+                stdoutChunks.push(data);
             },
             stderr(data) {
-                result.stderr += data.toString();
+                stderrChunks.push(data);
             },
         },
     });
-    return result;
+    return {
+        status,
+        stdout: Buffer.concat(stdoutChunks),
+        stderr: Buffer.concat(stderrChunks),
+    };
 }
 
-// EXTERNAL MODULE: external "fs"
-var external_fs_ = __nccwpck_require__(7147);
-var external_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_fs_);
+;// CONCATENATED MODULE: ./lib/git.ts
+
+/**
+ * Get the current branch name.
+ * @returns branch name
+ */
+async function getCurrentBranch() {
+    return await exec('git branch --show-current')
+        .then(({ stdout }) => stdout.toString().trim());
+}
+/**
+ * Get the sha of the given ref.
+ * @param ref - commit ref
+ * @returns sha
+ */
+async function getRev(ref = 'HEAD') {
+    return await actions_exec('git rev-parse', [ref])
+        .then(({ stdout }) => stdout.toString().trim());
+}
+/**
+ * Get the remote url of the repository.
+ * @param remoteName - remote name
+ * @returns remote url
+ */
+async function getRemoteUrl(remoteName = 'origin') {
+    return await actions_exec('git remote get-url --push', [remoteName])
+        .then(({ stdout }) => stdout.toString().trim());
+}
+/**
+ * Get the list of unmerged files.
+ * @returns unmerged files
+ */
+async function getUnmergedFiles() {
+    return await actions_exec('git diff --name-only --diff-filter=U')
+        .then(({ stdout }) => stdout.toString().split('\n').filter(Boolean));
+}
+/**
+ * Get the commit details.
+ * @param ref - ref to get the details for.
+ * @returns commit details
+ */
+async function getCommitDetails(ref = 'HEAD') {
+    const result = {};
+    const fieldsSeparator = '---';
+    const showOutputLines = await actions_exec('git show --raw --cc --diff-filter=AMD', [
+        '--format=' + [
+            'commit:%H%n' +
+                'tree:%T%n' +
+                'parent:%P%n' +
+                'author.name:%aN%n' +
+                'author.email:%aE%n' +
+                'author.date:%ai%n' +
+                'committer.name:%cN%n' +
+                'committer.email:%cE%n' +
+                'committer.date:%ci%n' +
+                'subject:%s%n' +
+                'body:%n' +
+                '%b%n' +
+                fieldsSeparator,
+        ].join(),
+        ref,
+    ])
+        .then(({ stdout }) => stdout.toString().split('\n'));
+    const eofBodyIndicatorIndex = showOutputLines.lastIndexOf(fieldsSeparator);
+    const showOutputFieldLines = showOutputLines.slice(0, eofBodyIndicatorIndex);
+    const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1, -1);
+    const showFieldLinesIterator = showOutputFieldLines.values();
+    for (const line of showFieldLinesIterator) {
+        const lineMatch = line.match(/^(?<lineValueName>[^:]+):(?<lineValue>.*)$/);
+        if (!lineMatch)
+            throw new Error(`Unexpected field line: ${line}`);
+        const { lineValueName, lineValue } = lineMatch.groups;
+        switch (lineValueName) {
+            case 'commit':
+                result.sha = lineValue;
+                break;
+            case 'tree':
+                result.tree = lineValue;
+                break;
+            case 'parent':
+                result.parents = lineValue.split(' ');
+                break;
+            case 'author.name':
+                result.author = result.author ?? {};
+                result.author.name = lineValue;
+                break;
+            case 'author.email':
+                result.author = result.author ?? {};
+                result.author.email = lineValue;
+                break;
+            case 'author.date':
+                result.author = result.author ?? {};
+                result.author.date = new Date(lineValue);
+                break;
+            case 'committer.name':
+                result.committer = result.committer ?? {};
+                result.committer.name = lineValue;
+                break;
+            case 'committer.email':
+                result.committer = result.committer ?? {};
+                result.committer.email = lineValue;
+                break;
+            case 'committer.date':
+                result.committer = result.committer ?? {};
+                result.committer.date = new Date(lineValue);
+                break;
+            case 'subject':
+                result.subject = lineValue;
+                break;
+            case 'body':
+                // read all remaining lines
+                result.body = [...showFieldLinesIterator].join('\n');
+                break;
+            default:
+                throw new Error(`Unexpected field: ${lineValueName}`);
+        }
+    }
+    result.files = showOutputFileLines
+        .map(parseRawFileDiffLine);
+    return result;
+}
+/**
+ * Get the cached details.
+ * @returns cached details
+ */
+async function getCacheDetails() {
+    const result = {};
+    const diffOutputFileLines = await actions_exec('git diff --cached --raw --cc --diff-filter=AMD')
+        .then(({ stdout }) => stdout.toString().split('\n').filter(Boolean));
+    result.files = diffOutputFileLines
+        .map(parseRawFileDiffLine);
+    return result;
+}
+/**
+ * Parse a line from the raw diff output.
+ * @param line - line to parse
+ * @returns parsed line
+ */
+function parseRawFileDiffLine(line) {
+    const fileMatch = line.match(/^:+(?:(?<mode>\d{6}) ){2,}(?:\w{7} ){2,}(?<status>[A-Z])\w*\s+(?<path>.*)$/);
+    if (!fileMatch)
+        throw new Error(`Unexpected file line: ${line}`);
+    return {
+        status: fileMatch.groups.status,
+        mode: fileMatch.groups.mode,
+        path: fileMatch.groups.path,
+    };
+}
+/**
+ * Read the content of the file at the given path.
+ * @param path - path to the file
+ * @param ref - ref to read the file from. If not set, the cached file is read.
+ * @returns file content
+ */
+async function readFile(path, ref) {
+    const object = ref ? `${ref}:${path}` : await getCachedObjectSha(path);
+    console.log('#### object', object.toString());
+    return await actions_exec('git cat-file blob', [object], { silent: true })
+        .then(({ stdout }) => stdout);
+}
+/**
+ * Get the sha of the cached object for the given path.
+ * @param path - path to the file
+ * @returns sha of the cached object
+ */
+async function getCachedObjectSha(path) {
+    return await actions_exec('git ls-files --cached --stage', [path], { silent: false })
+        // example output: 100644 5492f6d1d15ac444387259da81d19b74b3f2d4d6 0  dummy.txt
+        .then(({ stdout }) => stdout.toString().split(/\s/)[1]);
+}
+
+;// CONCATENATED MODULE: ./lib/github.ts
+/**
+ * Create a commit authored and committed by octokit token identity.
+ * In case of octokit token identity is a GitHub App the commit will be signed as well.
+ * @param octokit - GitHub client
+ * @param repository - target repository
+ * @param args - commit details and file content reader
+ * @returns created commit
+ */
+async function createCommit(octokit, repository, args) {
+    console.debug('creating file blobs ...');
+    const commitTreeBlobs = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => {
+        switch (status) {
+            case 'A':
+            case 'M': {
+                console.debug(' ', path, '...');
+                const content = await loadContent();
+                const blob = await octokit.rest.git.createBlob({
+                    ...repository,
+                    content: content.toString('base64'),
+                    encoding: 'base64',
+                }).then(({ data }) => data);
+                console.debug(' ', path, '>', blob.sha);
+                return {
+                    path,
+                    mode,
+                    sha: blob.sha,
+                    type: 'blob',
+                };
+            }
+            case 'D':
+                return {
+                    path,
+                    mode: '100644', // TODO check if needed
+                    sha: null,
+                    type: 'blob',
+                };
+            default:
+                throw new Error(`Unexpected file status: ${status}`);
+        }
+    }));
+    console.debug('creating commit tree ...');
+    const commitTree = await octokit.rest.git.createTree({
+        ...repository,
+        base_tree: args.parents[0],
+        tree: commitTreeBlobs,
+    }).then(({ data }) => data);
+    console.debug('commit tree', '>', commitTree.sha);
+    console.debug('creating commit ...');
+    const commit = await octokit.rest.git.createCommit({
+        ...repository,
+        parents: args.parents,
+        tree: commitTree.sha,
+        message: args.subject + '\n\n' + args.body,
+        // DO NOT set author or committer otherwise commit will not be verified
+        // author: {
+        //   name: localCommit.author.name,
+        //   email: localCommit.author.email,
+        //   date: localCommit.author.date.toISOString(),
+        // },
+        // If used with GitHub Actions GITHUB_TOKEN following values are used
+        // author.name:     github-actions[bot]
+        // author.email:    41898282+github-actions[bot]@users.noreply.github.com
+        // committer.name:  GitHub
+        // committer.email: noreply@github.com
+    }).then(({ data }) => data);
+    console.debug('commit', '>', commit.sha);
+    return commit;
+}
+/**
+ * Get repository owner and name from url.
+ * @param url - repository url
+ * @returns repository owner and name
+ */
+function parseRepositoryFromUrl(url) {
+    // git@github.com:qoomon/sandbox.git
+    // https://github.com/qoomon/sandbox.git
+    const urlMatch = url.trim().match(/.*?(?<owner>[^/:]+)\/(?<repo>[^/]+?)(?:\.git)?$/);
+    if (!urlMatch)
+        throw new Error(`Invalid github repository url: ${url}`);
+    return {
+        owner: urlMatch.groups.owner,
+        repo: urlMatch.groups.repo,
+    };
+}
+
 ;// CONCATENATED MODULE: ./index.ts
 
 
 
 // see https://github.com/actions/toolkit for more github actions libraries
 
+
 const input = {
     token: getInput('token', { required: true }),
-    message: getInput('message', { required: true }),
+    remoteName: getInput('remoteName', { required: true }),
+    message: getInput('message', { required: false }),
+    recommitHEAD: getInput('recommitHEAD', { required: false })?.toLowerCase() === 'true' || false,
 };
 const octokit = github.getOctokit(input.token);
 run(async () => {
-    const commitMessage = await Promise.resolve(input.message)
-        .then((it) => it.split('\n'))
-        .then((messageLines) => ({
-        headline: messageLines[0].trim(),
-        body: messageLines.slice(1).join('\n').trim() || undefined,
-    }));
-    // stash changes not staged for commit
-    await actions_exec('git stash push --keep-index');
-    const repositoryNameWithOwner = await actions_exec('git remote get-url --push origin')
-        .then(({ stdout }) => stdout.trim().replace(/.*?([^/:]+\/[^/]+?)(?:\.git)?$/, '$1'));
-    const branchName = await actions_exec('git branch --show-current')
-        .then(({ stdout }) => stdout.trim());
-    const headSha = await actions_exec('git rev-parse HEAD')
-        .then(({ stdout }) => stdout.trim());
-    const diffSummary = await actions_exec('git diff --cached --summary');
-    if (diffSummary.stdout.match(/^\s*mode change/m)) {
-        return core.setFailed('File mode changes are not supported.');
+    const repositoryRemoteUrl = await getRemoteUrl();
+    const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
+    let createCommitArgs;
+    if (input.recommitHEAD) {
+        const headCommit = await getCommitDetails('HEAD');
+        const messageLines = input.message?.split('\n');
+        createCommitArgs = {
+            subject: messageLines?.[0].trim() ??
+                headCommit.subject,
+            body: messageLines?.slice(1).join('\n').trim() ??
+                headCommit.body,
+            parents: headCommit.parents,
+            files: headCommit.files.map((file) => ({
+                ...file,
+                loadContent: async () => readFile(file.path, headCommit.sha),
+            })),
+        };
     }
-    const diff = {
-        // --diff-filter= A(Added) M(Modified)
-        additions: await actions_exec('git diff --cached --name-only --diff-filter=AM')
-            .then(({ stdout }) => stdout.split('\n').filter((path) => path.trim() !== ''))
-            .then((paths) => paths.map((path) => ({
-            path,
-            contents: external_fs_default().readFileSync(path).toString('base64'),
-        }))),
-        // --diff-filter= D(Deleted)
-        deletions: await actions_exec('git diff --cached --name-only --diff-filter=D')
-            .then(({ stdout }) => stdout.split('\n').filter((path) => path.trim() !== ''))
-            .then((paths) => paths.map((path) => ({
-            path
-        }))),
-    };
-    if (diff.additions?.length === 0 &&
-        diff.deletions?.length === 0) {
-        return core.setFailed(`On branch ${branchName}\n` +
-            'Nothing to commit, working tree clean');
-    }
-    const commit = await octokit.graphql(`mutation ($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }`, {
-        input: {
-            branch: { repositoryNameWithOwner, branchName },
-            expectedHeadOid: headSha,
-            fileChanges: {
-                additions: diff.additions,
-                deletions: diff.deletions,
-            },
-            message: commitMessage
+    else {
+        if (!input.message) {
+            core.setFailed('input message is required');
+            return;
         }
-    });
-    core.debug('Commit: ' + commit.createCommitOnBranch.commit?.oid);
-    // sync local branch with remote
-    await actions_exec(`git pull origin ${branchName}`);
-    // restore stash changes
-    await actions_exec('git stash pop');
+        const unmergedFiles = await getUnmergedFiles();
+        if (unmergedFiles.length > 0) {
+            core.setFailed('Committing is not possible because you have unmerged files.');
+            console.error('Unmerged files:', unmergedFiles);
+            return;
+        }
+        const headCommitSha = await getRev('HEAD');
+        const messageLines = input.message.split('\n');
+        const cache = await getCacheDetails();
+        createCommitArgs = {
+            subject: messageLines[0].trim(),
+            body: messageLines.slice(1).join('\n').trim(),
+            parents: [headCommitSha],
+            files: cache.files.map((file) => ({
+                ...file,
+                loadContent: async () => readFile(file.path),
+            })),
+        };
+    }
+    core.info('Creating commit ...');
+    if (createCommitArgs.files.length === 0) {
+        core.info('nothing to commit, working tree clean');
+        return;
+    }
+    const commit = await createCommit(octokit, repository, createCommitArgs);
+    core.setOutput('commit', commit.sha);
+    core.info('Syncing local repository ...');
+    await actions_exec(`git fetch ${input.remoteName} ${commit.sha}`, undefined);
+    await actions_exec(`git reset --soft ${commit.sha}`, undefined);
 });
 
 })();
