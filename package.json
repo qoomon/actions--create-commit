@@ -3,7 +3,6 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "ncc build index.ts",
-    "release": "./scripts/release.sh",
     "lint": "eslint .",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles",
     "ts-node": "NODE_OPTIONS='--loader ts-node/esm --experimental-specifier-resolution=node --no-warnings' node"

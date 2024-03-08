@@ -41,3 +41,7 @@ jobs:
   commitSha:
     description: 'The SHA of the commit'
 ```
+
+## Development
+### Release New Action Version
+Trigger [Release Version workflow](/actions/workflows/action-release.yaml)

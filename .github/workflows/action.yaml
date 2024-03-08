@@ -1,0 +1,30 @@
+  name: Build and Release
+
+  on:
+    push:
+      branches:
+        - main
+
+  jobs:
+    build:
+      permissions:
+        contents: write
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: '20'
+            cache: 'npm'
+        - run: npm ci
+
+        - name: Build Action
+          run: npm run build
+
+        - name: Release Action
+          run: git add -f dist/
+        - name: Release Action
+          uses: qoomon/actions--commit@v1
+          with:
+            message: 'build(release): release action'
+            push: true
