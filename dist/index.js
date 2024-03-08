@@ -40543,7 +40543,6 @@ function parseRawFileDiffLine(line) {
  */
 async function readFile(path, ref) {
     const object = ref ? `${ref}:${path}` : await getCachedObjectSha(path);
-    console.log('#### object', object.toString());
     return await actions_exec('git cat-file blob', [object], { silent: true })
         .then(({ stdout }) => stdout);
 }
@@ -40713,7 +40712,7 @@ run(async () => {
     await actions_exec(`git fetch ${input.remoteName} ${commit.sha}`);
     await actions_exec(`git reset --soft ${commit.sha}`);
     if (input.push) {
-        await actions_exec(`git push`);
+        await actions_exec(`git push ${input.remoteName}`);
     }
 });
 

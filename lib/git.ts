@@ -167,8 +167,6 @@ function parseRawFileDiffLine(line: string): RawFileDiff {
  */
 export async function readFile(path: string, ref?: string): Promise<Buffer> {
   const object = ref ? `${ref}:${path}` : await getCachedObjectSha(path)
-  console.log('#### object', object.toString())
-
   return await exec('git cat-file blob', [object], {silent: true})
       .then(({stdout}) => stdout)
 }
