@@ -40655,7 +40655,6 @@ const input = {
     remoteName: getInput('remoteName', { required: true }),
     message: getInput('message', { required: false }),
     recommitHEAD: getInput('recommitHEAD', { required: false })?.toLowerCase() === 'true' || false,
-    push: getInput('push', { required: false })?.toLowerCase() === 'true' || false,
 };
 const octokit = github.getOctokit(input.token);
 run(async () => {
@@ -40711,9 +40710,6 @@ run(async () => {
     core.info('Syncing local repository ...');
     await actions_exec(`git fetch ${input.remoteName} ${commit.sha}`);
     await actions_exec(`git reset --soft ${commit.sha}`);
-    if (input.push) {
-        await actions_exec(`git push ${input.remoteName}`);
-    }
 });
 
 })();
