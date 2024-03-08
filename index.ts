@@ -2,14 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {exec, getInput, run} from './lib/actions'
 // see https://github.com/actions/toolkit for more github actions libraries
-import {
-  getCommitDetails,
-  getRemoteUrl,
-  getRev,
-  getCacheDetails,
-  readFile,
-  getUnmergedFiles,
-} from './lib/git'
+import {getCacheDetails, getCommitDetails, getRemoteUrl, getRev, getUnmergedFiles, readFile,} from './lib/git'
 import {createCommit, CreateCommitArgs, parseRepositoryFromUrl} from './lib/github.js'
 
 const input = {
@@ -17,6 +10,7 @@ const input = {
   remoteName: getInput('remoteName', {required: true}),
   message: getInput('message', {required: false}),
   recommitHEAD: getInput('recommitHEAD', {required: false})?.toLowerCase() === 'true' || false,
+  push: getInput('push', {required: false})?.toLowerCase() === 'true' || false,
 }
 
 const octokit = github.getOctokit(input.token)
@@ -79,7 +73,11 @@ run(async () => {
   core.setOutput('commit', commit.sha)
 
   core.info('Syncing local repository ...')
-  await exec(`git fetch ${input.remoteName} ${commit.sha}`, undefined)
-  await exec(`git reset --soft ${commit.sha}`, undefined)
+  await exec(`git fetch ${input.remoteName} ${commit.sha}`)
+  await exec(`git reset --soft ${commit.sha}`)
+
+  if (input.push) {
+    await exec(`git push`)
+  }
 })
 

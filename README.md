@@ -20,22 +20,24 @@ jobs:
 
 ### Inputs
 ```yaml
-token:
-  description: 'A GitHub access token'
-  required: true
-  default: ${{ github.token }}
-message:
-  description: 'The commit message'
-recommitHead:
-  description: 'If true, the HEAD commit will be re-committed, instead of creating commit of the index changes'
-remoteName:
-  description: 'The remote name to create the commit on'
-  required: true
-  default: 'origin'
+  token:
+    description: 'A GitHub access token'
+    required: true
+    default: ${{ github.token }}
+  remoteName:
+    description: 'The remote name to create the commit on'
+    required: true
+    default: 'origin'
+  message:
+    description: 'The commit message'
+  recommitHead:
+    description: 'If true, the HEAD commit will be re-committed, instead creating commit of the index changes'
+  push:
+    description: 'If true, the commit will be pushed to the remote'
 ```
 
 ### Outputs
 ```yaml
-commitSha:
-  description: 'The SHA of the commit'
+  commitSha:
+    description: 'The SHA of the commit'
 ```
