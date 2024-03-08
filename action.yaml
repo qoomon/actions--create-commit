@@ -16,8 +16,8 @@ inputs:
     default: 'origin'
   message:
     description: 'The commit message'
-  recommitHead:
-    description: 'If true, the HEAD commit will be re-committed, instead creating commit of the index changes'
+  recreate:
+    description: 'If true, the HEAD commit will be recreated, instead of creating a new commit'
 
 outputs:
   commit:
