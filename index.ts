@@ -77,7 +77,7 @@ run(async () => {
   await exec(`git reset --soft ${commit.sha}`)
 
   if (input.push) {
-    await exec(`git push`)
+    await exec(`git push ${input.remoteName}`)
   }
 })
 
