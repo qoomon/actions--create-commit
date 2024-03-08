@@ -40654,14 +40654,14 @@ const input = {
     token: getInput('token', { required: true }),
     remoteName: getInput('remoteName', { required: true }),
     message: getInput('message', { required: false }),
-    recommitHEAD: getInput('recommitHEAD', { required: false })?.toLowerCase() === 'true' || false,
+    recreate: getInput('recreate', { required: false })?.toLowerCase() === 'true' || false,
 };
 const octokit = github.getOctokit(input.token);
 run(async () => {
     const repositoryRemoteUrl = await getRemoteUrl();
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
     let createCommitArgs;
-    if (input.recommitHEAD) {
+    if (input.recreate) {
         const headCommit = await getCommitDetails('HEAD');
         const messageLines = input.message?.split('\n');
         createCommitArgs = {
