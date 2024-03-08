@@ -21,10 +21,9 @@
         - name: Build Action
           run: npm run build
 
-        - name: Release Action
-          run: git add -f dist/
-        - name: Release Action
-          uses: qoomon/actions--commit@v1
+        # commit changes
+        - run: git add -f dist/
+        - uses: qoomon/actions--commit@v1
           with:
             message: 'build(release): release action'
-            push: true
+        - run: git push

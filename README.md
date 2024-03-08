@@ -32,8 +32,6 @@ jobs:
     description: 'The commit message'
   recommitHead:
     description: 'If true, the HEAD commit will be re-committed, instead creating commit of the index changes'
-  push:
-    description: 'If true, the commit will be pushed to the remote'
 ```
 
 ### Outputs

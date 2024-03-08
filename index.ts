@@ -10,7 +10,6 @@ const input = {
   remoteName: getInput('remoteName', {required: true}),
   message: getInput('message', {required: false}),
   recommitHEAD: getInput('recommitHEAD', {required: false})?.toLowerCase() === 'true' || false,
-  push: getInput('push', {required: false})?.toLowerCase() === 'true' || false,
 }
 
 const octokit = github.getOctokit(input.token)
@@ -75,9 +74,5 @@ run(async () => {
   core.info('Syncing local repository ...')
   await exec(`git fetch ${input.remoteName} ${commit.sha}`)
   await exec(`git reset --soft ${commit.sha}`)
-
-  if (input.push) {
-    await exec(`git push ${input.remoteName}`)
-  }
 })
 
