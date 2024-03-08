@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {exec, getInput, run} from './lib/actions'
 // see https://github.com/actions/toolkit for more github actions libraries
-import {getCacheDetails, getCommitDetails, getRemoteUrl, getRev, getUnmergedFiles, readFile,} from './lib/git'
+import {getCacheDetails, getCommitDetails, getRemoteUrl, getRev, getUnmergedFiles, readFile} from './lib/git'
 import {createCommit, CreateCommitArgs, parseRepositoryFromUrl} from './lib/github.js'
 
 const input = {
