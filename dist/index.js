@@ -40294,6 +40294,23 @@ exports.visitAsync = visitAsync;
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -40302,6 +40319,11 @@ exports.visitAsync = visitAsync;
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  "a": () => (/* binding */ action)
+});
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
@@ -40431,7 +40453,8 @@ async function getUnmergedFiles() {
 async function getCommitDetails(ref = 'HEAD') {
     const result = {};
     const fieldsSeparator = '---';
-    const showOutputLines = await actions_exec('git show --raw --cc --diff-filter=AMD', [
+    const showOutputLines = await actions_exec('git show --raw --cc', [
+        '--diff-filter=AMD', // A: added, M: modified, D: deleted
         '--format=' + [
             'commit:%H',
             'tree:%T',
@@ -40452,7 +40475,7 @@ async function getCommitDetails(ref = 'HEAD') {
         .then(({ stdout }) => stdout.toString().split('\n'));
     const eofBodyIndicatorIndex = showOutputLines.lastIndexOf(fieldsSeparator);
     const showOutputFieldLines = showOutputLines.slice(0, eofBodyIndicatorIndex);
-    const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1, -1);
+    const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1 + 1, -1);
     const showFieldLinesIterator = showOutputFieldLines.values();
     for (const line of showFieldLinesIterator) {
         const lineMatch = line.match(/^(?<lineValueName>[^:]+):(?<lineValue>.*)$/);
@@ -40611,7 +40634,7 @@ async function createCommit(octokit, repository, args) {
         parents: args.parents,
         tree: commitTree.sha,
         message: args.subject + '\n\n' + args.body,
-        // DO NOT set author or committer otherwise commit will not be verified
+        // DO NOT set author or committer otherwise commit will not be signed
         // author: {
         //   name: localCommit.author.name,
         //   email: localCommit.author.email,
@@ -40650,23 +40673,22 @@ function parseRepositoryFromUrl(url) {
 // see https://github.com/actions/toolkit for more github actions libraries
 
 
-const input = {
-    token: getInput('token', { required: true }),
-    workingDirectory: getInput('working-directory', { required: true }),
-    remoteName: getInput('remoteName', { required: true }),
-};
-process.chdir(input.workingDirectory);
-const octokit = github.getOctokit(input.token);
-run(async () => {
-    const repositoryRemoteUrl = await getRemoteUrl();
-    const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
+const action = () => run(async () => {
+    const input = {
+        token: getInput('token', { required: true }),
+        workingDirectory: getInput('working-directory') ?? '.',
+        remoteName: getInput('remoteName') ?? 'origin',
+    };
+    process.chdir(input.workingDirectory);
     const headCommit = await getCommitDetails('HEAD');
     if (headCommit.files.length === 0) {
         core.info('nothing to commit, working tree clean');
         return;
     }
-    core.info('Creating commit ...');
-    const createCommitArgs = {
+    const repositoryRemoteUrl = await getRemoteUrl();
+    const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
+    const octokit = github.getOctokit(input.token);
+    const commit = await createCommit(octokit, repository, {
         subject: headCommit.subject,
         body: headCommit.body,
         parents: headCommit.parents,
@@ -40676,14 +40698,17 @@ run(async () => {
             status: file.status,
             loadContent: async () => readFile(file.path, headCommit.sha),
         })),
-    };
-    const commit = await createCommit(octokit, repository, createCommitArgs);
-    core.setOutput('commit', commit.sha);
+    });
     core.info('Syncing local repository ...');
-    await actions_exec(`git fetch ${input.remoteName} ${commit.sha}`);
-    // TODO delete remote blob
+    await actions_exec(`git fetch-pack`, [repositoryRemoteUrl, commit.sha]);
     await actions_exec(`git reset --soft ${commit.sha}`);
+    core.setOutput('commit', commit.sha);
 });
+if (import.meta.url === `file://${process.argv[1]}`) {
+    action();
+}
 
 })();
 
+var __webpack_exports__action = __webpack_exports__.a;
+export { __webpack_exports__action as action };
