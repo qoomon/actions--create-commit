@@ -35,7 +35,7 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
       case 'D':
         return <TreeFile>{
           path,
-          mode: '100644', // TODO check if needed
+          mode: '100644',
           sha: null,
           type: 'blob',
         }

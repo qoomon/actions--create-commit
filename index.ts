@@ -14,6 +14,7 @@ export const action = () => run(async () => {
 
   process.chdir(input.workingDirectory)
 
+  // git log origin/master..HEAD
   const headCommit = await getCommitDetails('HEAD')
   if (headCommit.files.length === 0) {
     core.info('nothing to commit, working tree clean')
