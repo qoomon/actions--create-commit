@@ -55,7 +55,7 @@ export function getYamlInput(name: string, options?: InputOptions): unknown | nu
  * @param options - optional exec options. See ExecOptions
  * @returns status, stdout and stderr
  */
-export async function exec(commandLine: string, args?: string[], options?: ExecOptions) : Promise<ExecResult> {
+export async function exec(commandLine: string, args?: string[], options?: ExecOptions): Promise<ExecResult> {
   const stdoutChunks = <Buffer[]>[]
   const stderrChunks = <Buffer[]>[]
   const status = await _exec.exec(commandLine, args, {

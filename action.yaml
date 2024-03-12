@@ -10,14 +10,14 @@ inputs:
     description: 'A GitHub access token'
     required: true
     default: ${{ github.token }}
+  working-directory:
+    description: 'The working directory'
+    required: true
+    default: '.'
   remoteName:
     description: 'The remote name to create the commit on'
     required: true
     default: 'origin'
-  message:
-    description: 'The commit message'
-  recreate:
-    description: 'If true, the HEAD commit will be recreated, instead of creating a new commit'
 
 outputs:
   commit:

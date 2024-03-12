@@ -48,21 +48,21 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
 
   const fieldsSeparator = '---'
   const showOutputLines = await exec('git show --raw --cc --diff-filter=AMD', [
-    '--format=' + [ // TODO change to --format
-      'commit:%H%n' +
-      'tree:%T%n' +
-      'parent:%P%n' +
-      'author.name:%aN%n' +
-      'author.email:%aE%n' +
-      'author.date:%ai%n' +
-      'committer.name:%cN%n' +
-      'committer.email:%cE%n' +
-      'committer.date:%ci%n' +
-      'subject:%s%n' +
-      'body:%n' +
-      '%b%n' +
+    '--format=' + [
+      'commit:%H',
+      'tree:%T',
+      'parent:%P',
+      'author.name:%aN',
+      'author.email:%aE',
+      'author.date:%ai',
+      'committer.name:%cN',
+      'committer.email:%cE',
+      'committer.date:%ci',
+      'subject:%s',
+      'body:',
+      '%b',
       fieldsSeparator,
-    ].join(),
+    ].join('%n'),
     ref,
   ])
       .then(({stdout}) => stdout.toString().split('\n'))
