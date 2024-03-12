@@ -14,10 +14,14 @@ jobs:
       - runs: |
           date > dummy.txt
           git add dummy.txt
+          git commit -m 'work, work'
 
-      - uses: qoomon/actions--commit@v1
-        with:
-          message: 'work, work'
+      - name: Sign commit
+        uses: qoomon/actions--commit@v1
+
+      - runs: |
+          git push
+
 ```
 
 ### Inputs
