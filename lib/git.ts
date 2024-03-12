@@ -47,7 +47,8 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
   const result = <CommitDetails>{}
 
   const fieldsSeparator = '---'
-  const showOutputLines = await exec('git show --raw --cc --diff-filter=AMD', [
+  const showOutputLines = await exec('git show --raw --cc', [
+    '--diff-filter=AMD', // A: added, M: modified, D: deleted
     '--format=' + [
       'commit:%H',
       'tree:%T',
@@ -68,7 +69,7 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
       .then(({stdout}) => stdout.toString().split('\n'))
   const eofBodyIndicatorIndex = showOutputLines.lastIndexOf(fieldsSeparator)
   const showOutputFieldLines = showOutputLines.slice(0, eofBodyIndicatorIndex)
-  const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1, -1)
+  const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1 + 1, -1)
 
   const showFieldLinesIterator = showOutputFieldLines.values()
   for (const line of showFieldLinesIterator) {

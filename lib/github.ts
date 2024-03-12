@@ -59,7 +59,7 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
     tree: commitTree.sha,
     message: args.subject + '\n\n' + args.body,
 
-    // DO NOT set author or committer otherwise commit will not be verified
+    // DO NOT set author or committer otherwise commit will not be signed
     // author: {
     //   name: localCommit.author.name,
     //   email: localCommit.author.email,
