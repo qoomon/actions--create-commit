@@ -7,23 +7,23 @@ on:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: qoomon/actions--setup-git-user@v1
+
+      # build the action
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build
 
-      - name: Build Action
-        run: npm run build
-
-      # commit changes
-      - run: git add -f dist/
-      - uses: qoomon/actions--commit@v1
-        with:
-          message: 'build(release): release action'
-      - run: git push
+      # commit and push build output
+      - run: |
+          git add -f dist/
+          git commit -m 'chore: build action' || true
+          git push

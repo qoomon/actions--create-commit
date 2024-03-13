@@ -40613,7 +40613,7 @@ async function createCommit(octokit, repository, args) {
             case 'D':
                 return {
                     path,
-                    mode: '100644', // TODO check if needed
+                    mode: '100644',
                     sha: null,
                     type: 'blob',
                 };
@@ -40680,6 +40680,7 @@ const action = () => run(async () => {
         remoteName: getInput('remoteName') ?? 'origin',
     };
     process.chdir(input.workingDirectory);
+    // git log origin/master..HEAD
     const headCommit = await getCommitDetails('HEAD');
     if (headCommit.files.length === 0) {
         core.info('nothing to commit, working tree clean');

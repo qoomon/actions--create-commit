@@ -1,6 +1,9 @@
-# commit
+# Create Commit
 
-Commits made using this action are automatically signed by GitHub and will be marked as verified in the user interface.
+This action will **replace HEAD commit** with a commit created via GitHub api equivalent to HEAD commit,
+however with new committer and author according to token identity.
+Commits are signed if a GitHub App token (`ghs_***`) is used and will be marked as `verified` in the GitHub web interface.
+
 
 ### Example
 
@@ -10,23 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - runs: |
+      - uses: qoomon/actions--setup-git-user@v1
+      - run: |
           date > dummy.txt
           git add dummy.txt
           git commit -m 'work, work'
 
-      - name: Sign commit
-        uses: qoomon/actions--commit@v1
+      - name: Sign HEAD commit
+        uses: qoomon/actions--create-commit@v1
 
-      - runs: |
-          git push
+      - run: git push
 
 ```
 
 ### Inputs
 
 ```yaml
+inputs:
   token:
     description: 'A GitHub access token'
     required: true
@@ -36,16 +39,9 @@ jobs:
     required: true
     default: '.'
   remoteName:
-    description: 'The remote name to create the commit on'
+    description: 'The remote name to create the commit at.'
     required: true
     default: 'origin'
-```
-
-### Outputs
-
-```yaml
-  commitSha:
-    description: 'The SHA of the commit'
 ```
 
 ## Development

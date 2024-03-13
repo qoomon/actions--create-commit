@@ -12,19 +12,23 @@ export const action = () => run(async () => {
     remoteName: getInput('remoteName') ?? 'origin',
   }
 
+  if (!input.token.startsWith('ghs_')) {
+    core.setFailed(`Only GitHub app tokens (ghs_***) can be used for signing commits.`)
+    return
+  }
+
   process.chdir(input.workingDirectory)
 
-  // git log origin/master..HEAD
   const headCommit = await getCommitDetails('HEAD')
   if (headCommit.files.length === 0) {
     core.info('nothing to commit, working tree clean')
     return
   }
-  const repositoryRemoteUrl = await getRemoteUrl()
+  const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
 
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
   const octokit = github.getOctokit(input.token)
-  const commit = await createCommit(octokit, repository, {
+  const signedCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
     parents: headCommit.parents,
@@ -37,10 +41,8 @@ export const action = () => run(async () => {
   })
 
   core.info('Syncing local repository ...')
-  await exec(`git fetch-pack`, [repositoryRemoteUrl, commit.sha])
-  await exec(`git reset --soft ${commit.sha}`)
-
-  core.setOutput('commit', commit.sha)
+  await exec(`git fetch`, [input.remoteName, signedCommit.sha])
+  await exec(`git reset --soft ${signedCommit.sha}`)
 })
 
 if (import.meta.url === `file://${process.argv[1]}`) {

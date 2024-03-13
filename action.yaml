@@ -1,5 +1,5 @@
-name: 'Signed Commit'
-description: 'GitHub Action to create signed commits from within a GitHub Action workflow'
+name: 'Create Commit'
+description: 'Create Commit'
 author: 'qoomon'
 branding:
   icon: git-commit
@@ -15,13 +15,9 @@ inputs:
     required: true
     default: '.'
   remoteName:
-    description: 'The remote name to create the commit on'
+    description: 'The remote name to create the commit at.'
     required: true
     default: 'origin'
-
-outputs:
-  commit:
-    description: 'The SHA of the commit'
 
 runs:
   using: 'node20'
