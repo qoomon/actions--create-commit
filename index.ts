@@ -12,11 +12,6 @@ export const action = () => run(async () => {
     remoteName: getInput('remoteName') ?? 'origin',
   }
 
-  if (!input.token.startsWith('ghs_')) {
-    core.setFailed(`Only GitHub app tokens (ghs_***) can be used for signing commits.`)
-    return
-  }
-
   process.chdir(input.workingDirectory)
 
   const headCommit = await getCommitDetails('HEAD')
