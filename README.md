@@ -17,7 +17,7 @@ jobs:
       - run: |
           date > dummy.txt
           git add dummy.txt
-          git commit -m 'work, work'
+          git commit -m 'work, work' || true
 
       - name: Sign HEAD commit
         uses: qoomon/actions--create-commit@v1
