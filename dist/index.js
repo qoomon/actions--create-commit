@@ -40678,17 +40678,29 @@ const action = () => run(async () => {
         token: getInput('token', { required: true }),
         workingDirectory: getInput('working-directory') ?? '.',
         remoteName: getInput('remoteName') ?? 'origin',
+        message: getInput('message', { required: true }),
+        amend: getInput('amend') === 'true',
     };
     process.chdir(input.workingDirectory);
-    const headCommit = await getCommitDetails('HEAD');
-    if (headCommit.files.length === 0) {
-        core.info('nothing to commit, working tree clean');
+    const commitArgs = [
+        '--message', input.message,
+    ];
+    if (input.amend)
+        commitArgs.push('--amend');
+    const commitResult = await actions_exec('git', [
+        '-c', 'user.name=github-actions[bot]',
+        '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
+        'commit', ...commitArgs
+    ]);
+    if (commitResult.status !== 0) {
+        core.info(commitResult.stderr.toString());
         return;
     }
+    const octokit = github.getOctokit(input.token);
+    const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
-    const octokit = github.getOctokit(input.token);
-    const signedCommit = await createCommit(octokit, repository, {
+    const githubCommit = await createCommit(octokit, repository, {
         subject: headCommit.subject,
         body: headCommit.body,
         parents: headCommit.parents,
@@ -40700,8 +40712,8 @@ const action = () => run(async () => {
         })),
     });
     core.info('Syncing local repository ...');
-    await actions_exec(`git fetch`, [input.remoteName, signedCommit.sha]);
-    await actions_exec(`git reset --soft ${signedCommit.sha}`);
+    await actions_exec(`git fetch`, [input.remoteName, githubCommit.sha]);
+    await actions_exec(`git reset ${githubCommit.sha}`);
 });
 if (import.meta.url === `file://${process.argv[1]}`) {
     action();
