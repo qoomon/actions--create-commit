@@ -6,6 +6,13 @@ branding:
   color: blue
 
 inputs:
+  message:
+    description: 'The commit message'
+    required: true
+  amend:
+    description: 'Amend the last commit'
+    default: false
+
   token:
     description: 'A GitHub access token'
     required: true

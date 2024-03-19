@@ -1,9 +1,7 @@
 # Create Commit
 
-This action will **replace HEAD commit** with a commit created via GitHub api equivalent to HEAD commit,
-however with new committer and author according to token identity.
-Commits are signed if a GitHub App token (`ghs_***`) is used and will be marked as `verified` in the GitHub web interface.
-
+This action will create a new commit via GitHub API, committer and author are related to token identity.
+Commits getting signed, if a GitHub App token (`ghs_***`) is used and will be marked as `verified` in the GitHub web interface.
 
 ### Example
 
@@ -17,10 +15,11 @@ jobs:
       - run: |
           date > dummy.txt
           git add dummy.txt
-          git commit -m 'work, work'
 
       - name: Sign HEAD commit
         uses: qoomon/actions--create-commit@v1
+        with:
+          message: work work
 
       - run: git push
 
@@ -30,6 +29,13 @@ jobs:
 
 ```yaml
 inputs:
+  message:
+    description: 'The commit message'
+    required: true
+  amend:
+    description: 'Amend the last commit'
+    default: false
+
   token:
     description: 'A GitHub access token'
     required: true
