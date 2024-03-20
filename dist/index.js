@@ -40680,6 +40680,7 @@ const action = () => run(async () => {
         remoteName: getInput('remoteName') ?? 'origin',
         message: getInput('message', { required: true }),
         amend: getInput('amend') === 'true',
+        allowEmpty: getInput('allow-empty') === 'true',
     };
     process.chdir(input.workingDirectory);
     const commitArgs = [
@@ -40687,10 +40688,12 @@ const action = () => run(async () => {
     ];
     if (input.amend)
         commitArgs.push('--amend');
+    if (input.allowEmpty)
+        commitArgs.push('--allow-empty');
     const commitResult = await actions_exec('git', [
         '-c', 'user.name=github-actions[bot]',
         '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
-        'commit', ...commitArgs
+        'commit', ...commitArgs,
     ]);
     if (commitResult.status !== 0) {
         core.info(commitResult.stderr.toString());
