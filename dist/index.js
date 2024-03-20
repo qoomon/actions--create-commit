@@ -32450,7 +32450,7 @@ async function createCommit(octokit, repository, args) {
         // committer.name:  GitHub
         // committer.email: noreply@github.com
     }).then(({ data }) => data);
-    console.debug('commit', '>', commit.sha);
+    console.debug('commit', '->', commit.sha);
     return commit;
 }
 /**
