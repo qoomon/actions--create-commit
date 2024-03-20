@@ -12,6 +12,9 @@ inputs:
   amend:
     description: 'Amend the last commit'
     default: false
+  allowEmpty:
+    description: 'Allow empty commit'
+    default: false
 
   token:
     description: 'A GitHub access token'

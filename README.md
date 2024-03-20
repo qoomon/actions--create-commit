@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: qoomon/actions--setup-git-user@v1
       - run: |
           date > dummy.txt
           git add dummy.txt
@@ -33,6 +32,9 @@ inputs:
     required: true
   amend:
     description: 'Amend the last commit'
+    default: false
+  allowEmpty:
+    description: 'Allow empty commit'
     default: false
 
   token:
