@@ -20,7 +20,6 @@ jobs:
           message: work work
 
       - run: git push
-
 ```
 
 ### Inputs
