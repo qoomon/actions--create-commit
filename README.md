@@ -34,7 +34,10 @@ inputs:
     description: 'Amend the last commit'
     default: false
   allow-empty:
-    description: 'Allow empty commit'
+    description: 'Allow an empty commit'
+    default: false
+  skip-empty:
+    description: 'Skip action, if nothing to commit'
     default: false
 
   token:

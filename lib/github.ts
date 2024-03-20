@@ -1,4 +1,7 @@
 import * as github from '@actions/github'
+import pLimit from 'p-limit'
+
+const GITHUB_API_RATE_LIMITER = pLimit(10)
 
 /**
  * Create a commit authored and committed by octokit token identity.
@@ -12,51 +15,56 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
   owner: string,
   repo: string
 }, args: CreateCommitArgs) {
-  console.debug('creating file blobs ...')
-  const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
-    switch (status) {
-      case 'A':
-      case 'M': {
-        console.debug(' ', path, '...')
-        const content = await loadContent()
-        const blob = await octokit.rest.git.createBlob({
-          ...repository,
-          content: content.toString('base64'),
-          encoding: 'base64',
-        }).then(({data}) => data)
-        console.debug(' ', path, '>', blob.sha)
-        return <TreeFile>{
-          path,
-          mode,
-          sha: blob.sha,
-          type: 'blob',
-        }
-      }
-      case 'D':
-        return <TreeFile>{
-          path,
-          mode: '100644',
-          sha: null,
-          type: 'blob',
-        }
-      default:
-        throw new Error(`Unexpected file status: ${status}`)
-    }
-  }))
-
-  console.debug('creating commit tree ...')
-  const commitTree = await octokit.rest.git.createTree({
-    ...repository,
-    base_tree: args.parents[0],
-    tree: commitTreeBlobs,
-  }).then(({data}) => data)
-  console.debug('commit tree', '>', commitTree.sha)
-
   console.debug('creating commit ...')
+
+  let commitTreeSha = args.tree
+  if (args.files.length > 0) {
+    console.debug('  creating commit tree ...')
+
+    console.debug('    creating file blobs ...')
+    const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
+          switch (status) {
+            case 'A':
+            case 'M': {
+              console.debug('     ', path, '...')
+              const content = await loadContent()
+              const blob = await GITHUB_API_RATE_LIMITER(() => octokit.rest.git.createBlob({
+                ...repository,
+                content: content.toString('base64'),
+                encoding: 'base64',
+              })).then(({data}) => data)
+              console.debug('     ', path, '->', blob.sha)
+              return <TreeFile>{
+                path,
+                mode,
+                sha: blob.sha,
+                type: 'blob',
+              }
+            }
+            case 'D':
+              return {
+                path,
+                mode: '100644',
+                sha: null,
+                type: 'blob',
+              } satisfies TreeFile
+            default:
+              throw new Error(`Unexpected file status: ${status}`)
+          }
+        }))
+
+    commitTreeSha = await octokit.rest.git.createTree({
+      ...repository,
+      base_tree: args.parents[0],
+      tree: commitTreeBlobs,
+    }).then(({data}) => data.sha)
+    console.debug('  commit tree', '->', commitTreeSha)
+  }
+
   const commit = await octokit.rest.git.createCommit({
     ...repository,
     parents: args.parents,
-    tree: commitTree.sha,
+    tree: commitTreeSha,
     message: args.subject + '\n\n' + args.body,
 
     // DO NOT set author or committer otherwise commit will not be signed
@@ -98,6 +106,7 @@ export type CreateCommitArgs = {
   subject: string
   body: string
   parents: string[]
+  tree: string,
   files: {
     path: string
     mode: '100644' | '100755' | '040000' | '160000' | '120000' | string

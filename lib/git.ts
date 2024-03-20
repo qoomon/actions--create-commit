@@ -48,7 +48,6 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
 
   const fieldsSeparator = '---'
   const showOutputLines = await exec('git show --raw --cc', [
-    '--diff-filter=AMD', // A: added, M: modified, D: deleted
     '--format=' + [
       'commit:%H',
       'tree:%T',
@@ -123,7 +122,9 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
   }
 
   result.files = showOutputFileLines
-      .map(parseRawFileDiffLine) satisfies RawFileDiff[] as (RawFileDiff & { status: 'A' | 'M' | 'D' })[]
+      .map(parseRawFileDiffLine)
+      .filter(({status}) => ['A', 'M', 'D'].includes(status)) as
+      (ReturnType<typeof parseRawFileDiffLine> & { status: 'A' | 'M' | 'D' })[]
 
   return result
 }
@@ -135,11 +136,13 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
 export async function getCacheDetails(): Promise<CacheDetails> {
   const result = <CacheDetails>{}
 
-  const diffOutputFileLines = await exec('git diff --cached --raw --cc --diff-filter=AMD')
+  const diffOutputFileLines = await exec('git diff --cached --raw --cc')
       .then(({stdout}) => stdout.toString().split('\n').filter(Boolean))
 
   result.files = diffOutputFileLines
-      .map(parseRawFileDiffLine) satisfies RawFileDiff[] as (RawFileDiff & { status: 'A' | 'M' | 'D' })[]
+      .map(parseRawFileDiffLine)
+      .filter(({status}) => ['A', 'M', 'D'].includes(status)) as
+      (ReturnType<typeof parseRawFileDiffLine> & { status: 'A' | 'M' | 'D' })[]
 
   return result
 }

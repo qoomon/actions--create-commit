@@ -13,9 +13,22 @@ export const action = () => run(async () => {
     message: getInput('message', {required: true})!,
     amend: getInput('amend') === 'true',
     allowEmpty: getInput('allow-empty') === 'true',
+    skipEmpty: getInput('skip-empty') === 'true',
   }
 
   process.chdir(input.workingDirectory)
+
+  const cacheDetails = await getCacheDetails()
+  console.log('cacheDetails', cacheDetails)
+  if (cacheDetails.files.length === 0) {
+    if (input.skipEmpty) {
+      core.info('nothing to commit, working tree clean')
+      return
+    } else if (!input.allowEmpty) {
+      core.setFailed('nothing to commit, working tree clean')
+      return
+    }
+  }
 
   const commitArgs = [
     '--message', input.message,
@@ -27,10 +40,6 @@ export const action = () => run(async () => {
     '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
     'commit', ...commitArgs,
   ])
-  if (commitResult.status !== 0) {
-    core.info(commitResult.stderr.toString())
-    return
-  }
 
   const octokit = github.getOctokit(input.token)
   const headCommit = await getCommitDetails('HEAD')
@@ -39,6 +48,7 @@ export const action = () => run(async () => {
   const githubCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
+    tree: headCommit.tree,
     parents: headCommit.parents,
     files: headCommit.files.map((file) => ({
       path: file.path,

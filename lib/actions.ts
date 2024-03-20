@@ -1,6 +1,5 @@
 import * as core from '@actions/core'
 import {InputOptions} from '@actions/core'
-import YAML from 'yaml'
 import {HttpClientError} from '@actions/http-client'
 import * as _exec from '@actions/exec'
 import {ExecOptions} from '@actions/exec'
@@ -31,21 +30,6 @@ export function run(action: () => Promise<void>): void {
  */
 export function getInput(name: string, options?: InputOptions): string | null {
   return core.getInput(name, options) || null
-}
-
-/**
- * Gets the yaml value of an input.
- * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
- * Returns null if the value is not defined.
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @returns   parsed input as object
- */
-export function getYamlInput(name: string, options?: InputOptions): unknown | null {
-  const input = getInput(name, options)
-  if (input === null) return null
-  return YAML.parse(input)
 }
 
 /**

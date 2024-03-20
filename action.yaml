@@ -11,10 +11,13 @@ inputs:
     required: true
   amend:
     description: 'Amend the last commit'
-    default: false
+    default: 'false'
   allow-empty:
-    description: 'Allow empty commit'
-    default: false
+    description: 'Allow an empty commit'
+    default: 'false'
+  skip-empty:
+    description: 'Skip action, if nothing to commit'
+    default: 'false'
 
   token:
     description: 'A GitHub access token'
