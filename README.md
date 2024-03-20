@@ -33,7 +33,7 @@ inputs:
   amend:
     description: 'Amend the last commit'
     default: false
-  allowEmpty:
+  allow-empty:
     description: 'Allow empty commit'
     default: false
 
