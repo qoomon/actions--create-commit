@@ -16,10 +16,13 @@ jobs:
           git add dummy.txt
 
       - uses: qoomon/actions--create-commit@v1
+        id: commit
         with:
           message: work work
+          skip-empty: true
 
-      - run: git push
+      - if: ${{ steps.commit.outputs.commit != null }}
+        run: git push
 ```
 
 ### Inputs
