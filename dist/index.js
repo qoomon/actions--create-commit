@@ -32385,7 +32385,7 @@ var p_limit = __nccwpck_require__(7684);
 var p_limit_default = /*#__PURE__*/__nccwpck_require__.n(p_limit);
 ;// CONCATENATED MODULE: ./lib/github.ts
 
-const GITHUB_API_RATE_LIMITER = p_limit_default()(10);
+const octokitLimit = p_limit_default()(10);
 /**
  * Create a commit authored and committed by octokit token identity.
  * In case of octokit token identity is a GitHub App the commit will be signed as well.
@@ -32406,7 +32406,7 @@ async function createCommit(octokit, repository, args) {
                 case 'M': {
                     console.debug('     ', path, '...');
                     const content = await loadContent();
-                    const blob = await GITHUB_API_RATE_LIMITER(() => octokit.rest.git.createBlob({
+                    const blob = await octokitLimit(() => octokit.rest.git.createBlob({
                         ...repository,
                         content: content.toString('base64'),
                         encoding: 'base64',
@@ -32511,7 +32511,7 @@ const action = () => run(async () => {
         commitArgs.push('--amend');
     if (input.allowEmpty)
         commitArgs.push('--allow-empty');
-    const commitResult = await actions_exec('git', [
+    await actions_exec('git', [
         '-c', `user.name=${bot.name}`,
         '-c', `user.email=${bot.email}`,
         'commit', ...commitArgs,
