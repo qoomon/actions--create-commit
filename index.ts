@@ -35,7 +35,7 @@ export const action = () => run(async () => {
   ]
   if (input.amend) commitArgs.push('--amend')
   if (input.allowEmpty) commitArgs.push('--allow-empty')
-  const commitResult = await exec('git', [
+  await exec('git', [
     '-c', `user.name=${bot.name}`,
     '-c', `user.email=${bot.email}`,
     'commit', ...commitArgs,

@@ -1,7 +1,7 @@
 import * as github from '@actions/github'
 import pLimit from 'p-limit'
 
-const GITHUB_API_RATE_LIMITER = pLimit(10)
+const octokitLimit = pLimit(10)
 
 /**
  * Create a commit authored and committed by octokit token identity.
@@ -23,35 +23,35 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
 
     console.debug('    creating file blobs ...')
     const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
-          switch (status) {
-            case 'A':
-            case 'M': {
-              console.debug('     ', path, '...')
-              const content = await loadContent()
-              const blob = await GITHUB_API_RATE_LIMITER(() => octokit.rest.git.createBlob({
-                ...repository,
-                content: content.toString('base64'),
-                encoding: 'base64',
-              })).then(({data}) => data)
-              console.debug('     ', path, '->', blob.sha)
-              return <TreeFile>{
-                path,
-                mode,
-                sha: blob.sha,
-                type: 'blob',
-              }
-            }
-            case 'D':
-              return {
-                path,
-                mode: '100644',
-                sha: null,
-                type: 'blob',
-              } satisfies TreeFile
-            default:
-              throw new Error(`Unexpected file status: ${status}`)
+      switch (status) {
+        case 'A':
+        case 'M': {
+          console.debug('     ', path, '...')
+          const content = await loadContent()
+          const blob = await octokitLimit(() => octokit.rest.git.createBlob({
+            ...repository,
+            content: content.toString('base64'),
+            encoding: 'base64',
+          })).then(({data}) => data)
+          console.debug('     ', path, '->', blob.sha)
+          return <TreeFile>{
+            path,
+            mode,
+            sha: blob.sha,
+            type: 'blob',
           }
-        }))
+        }
+        case 'D':
+          return {
+            path,
+            mode: '100644',
+            sha: null,
+            type: 'blob',
+          } satisfies TreeFile
+        default:
+          throw new Error(`Unexpected file status: ${status}`)
+      }
+    }))
 
     commitTreeSha = await octokit.rest.git.createTree({
       ...repository,
