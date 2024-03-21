@@ -32150,6 +32150,10 @@ var lib_exec = __nccwpck_require__(1514);
 
 
 
+const bot = {
+    name: 'github-actions[bot]',
+    email: '41898282+github-actions[bot]@users.noreply.github.com',
+};
 /**
  * Run action and catch errors
  * @param action - action to run
@@ -32508,8 +32512,8 @@ const action = () => run(async () => {
     if (input.allowEmpty)
         commitArgs.push('--allow-empty');
     const commitResult = await actions_exec('git', [
-        '-c', 'user.name=github-actions[bot]',
-        '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
+        '-c', `user.name=${bot.name}`,
+        '-c', `user.email=${bot.email}`,
         'commit', ...commitArgs,
     ]);
     const octokit = github.getOctokit(input.token);
