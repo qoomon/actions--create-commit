@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import {exec, getInput, run} from './lib/actions.js'
+import {bot, exec, getInput, run} from './lib/actions.js'
 // see https://github.com/actions/toolkit for more github actions libraries
 import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
 import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
@@ -36,8 +36,8 @@ export const action = () => run(async () => {
   if (input.amend) commitArgs.push('--amend')
   if (input.allowEmpty) commitArgs.push('--allow-empty')
   const commitResult = await exec('git', [
-    '-c', 'user.name=github-actions[bot]',
-    '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
+    '-c', `user.name=${bot.name}`,
+    '-c', `user.email=${bot.email}`,
     'commit', ...commitArgs,
   ])
 
