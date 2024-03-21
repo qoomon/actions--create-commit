@@ -32,6 +32,10 @@ inputs:
     required: true
     default: 'origin'
 
+outputs:
+  commit:
+    description: 'The commit hash, if a commit was created'
+
 runs:
   using: 'node20'
   main: 'dist/index.js'

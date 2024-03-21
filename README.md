@@ -53,6 +53,14 @@ inputs:
     default: 'origin'
 ```
 
+### Outputs
+
+```yaml
+outputs:
+  commit:
+    description: 'The commit hash, if a commit was created'
+```
+
 ## Development
 
 ### Release New Action Version

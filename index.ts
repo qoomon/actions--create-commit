@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import {bot, exec, getInput, run} from './lib/actions.js'
 // see https://github.com/actions/toolkit for more github actions libraries
+import {bot, exec, getInput, run} from './lib/actions.js'
 import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
 import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
 
@@ -61,6 +61,8 @@ export const action = () => run(async () => {
   core.info('Syncing local repository ...')
   await exec('git fetch', [input.remoteName, githubCommit.sha])
   await exec('git reset', [githubCommit.sha])
+
+  core.setOutput('commit', githubCommit.sha)
 })
 
 if (import.meta.url === `file://${process.argv[1]}`) {
