@@ -59,8 +59,8 @@ export const action = () => run(async () => {
   })
 
   core.info('Syncing local repository ...')
-  await exec(`git fetch`, [input.remoteName, githubCommit.sha])
-  await exec(`git reset ${githubCommit.sha}`)
+  await exec('git fetch', [input.remoteName, githubCommit.sha])
+  await exec('git reset', [githubCommit.sha])
 })
 
 if (import.meta.url === `file://${process.argv[1]}`) {
