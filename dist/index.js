@@ -32477,8 +32477,8 @@ function parseRepositoryFromUrl(url) {
 ;// CONCATENATED MODULE: ./index.ts
 
 
-
 // see https://github.com/actions/toolkit for more github actions libraries
+
 
 
 const action = () => run(async () => {
@@ -32535,6 +32535,7 @@ const action = () => run(async () => {
     core.info('Syncing local repository ...');
     await actions_exec('git fetch', [input.remoteName, githubCommit.sha]);
     await actions_exec('git reset', [githubCommit.sha]);
+    core.setOutput('commit', githubCommit.sha);
 });
 if (import.meta.url === `file://${process.argv[1]}`) {
     action();
