@@ -18,6 +18,8 @@ export const action = () => run(async () => {
 
   process.chdir(input.workingDirectory)
 
+  core.setOutput('commit', null)
+
   const cacheDetails = await getCacheDetails()
   console.log('cacheDetails', cacheDetails)
   if (cacheDetails.files.length === 0) {
