@@ -153,7 +153,7 @@ export async function getCacheDetails(): Promise<CacheDetails> {
  * @returns parsed line
  */
 function parseRawFileDiffLine(line: string): RawFileDiff {
-  const fileMatch = line.match(/^:+(?:(?<mode>\d{6}) ){2,}(?:\w{7} ){2,}(?<status>[A-Z])\w*\s+(?<path>.*)$/)
+  const fileMatch = line.match(/^:+(?:(?<mode>\d{6}) ){2,}(?:\w{7,} ){2,}(?<status>[A-Z])\w*\s+(?<path>.*)$/)
   if (!fileMatch) throw new Error(`Unexpected file line: ${line}`)
 
   return {
