@@ -45,23 +45,24 @@ export function getInput(name: string, options?: InputOptions): string | null {
  * @returns status, stdout and stderr
  */
 export async function exec(commandLine: string, args?: string[], options?: ExecOptions): Promise<ExecResult> {
-  const stdoutChunks = <Buffer[]>[]
-  const stderrChunks = <Buffer[]>[]
+  const stdoutChunks = [] as Uint8Array[]
+  const stderrChunks = [] as Uint8Array[]
   const status = await _exec.exec(commandLine, args, {
     ...options,
     listeners: {
       stdout(data) {
-        stdoutChunks.push(data)
+        stdoutChunks.push(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
       },
       stderr(data) {
-        stderrChunks.push(data)
+        stderrChunks.push(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
       },
     },
   })
+
   return {
     status,
-    stdout: Buffer.concat(stdoutChunks as Uint8Array[]),
-    stderr: Buffer.concat(stderrChunks as Uint8Array[]),
+    stdout: Buffer.concat(stdoutChunks),
+    stderr: Buffer.concat(stderrChunks),
   }
 }
 
