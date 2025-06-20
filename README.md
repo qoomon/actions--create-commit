@@ -48,10 +48,6 @@ inputs:
     description: 'A GitHub access token'
     required: true
     default: ${{ github.token }}
-  working-directory:
-    description: 'The working directory'
-    required: true
-    default: '.'
   remoteName:
     description: 'The remote name to create the commit at.'
     required: true

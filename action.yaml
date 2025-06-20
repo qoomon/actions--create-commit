@@ -6,27 +6,18 @@ branding:
   color: blue
 
 inputs:
-  message:
-    description: 'The commit message'
+  add:
+    description: 'add command arguments'
+  commit:
+    description: 'commit command arguments'
     required: true
-  amend:
-    description: 'Amend the last commit'
-    default: 'false'
-  allow-empty:
-    description: 'Allow an empty commit'
-    default: 'false'
-  skip-empty:
-    description: 'Skip action, if nothing to commit'
-    default: 'false'
+  push:
+    description: 'push command arguments'
 
   token:
     description: 'A GitHub access token'
     required: true
     default: ${{ github.token }}
-  working-directory:
-    description: 'The working directory'
-    required: true
-    default: '.'
   remoteName:
     description: 'The remote name to create the commit at.'
     required: true

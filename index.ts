@@ -1,48 +1,50 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-// see https://github.com/actions/toolkit for more github actions libraries
-import {bot, exec, getInput, run} from './lib/actions.js'
+import {bot, getInput, run} from './lib/actions.js'
+import {exec} from '@actions/exec'
 import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
 import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
+import * as process from "node:process";
+import {colorize, NullWritable} from "./lib/common";
+
+if(process.env['RUNNER_DEBUG'] !== '1') {
+  console.debug = (...args) => {}
+}
 
 export const action = () => run(async () => {
   const input = {
     token: getInput('token', {required: true})!,
-    workingDirectory: getInput('working-directory') ?? '.',
-    remoteName: getInput('remoteName') ?? 'origin',
-    message: getInput('message', {required: true})!,
-    amend: getInput('amend') === 'true',
-    allowEmpty: getInput('allow-empty') === 'true',
-    skipEmpty: getInput('skip-empty') === 'true',
+    add: getInput('add'),
+    commit: getInput('commit'),
+    commitSkipEmpty: getInput('commit-skip-empty')?.toLowerCase() === 'true',
+    push: getInput('push'),
+    remoteName: getInput('remote-name') || 'origin',
   }
-
-  process.chdir(input.workingDirectory)
 
   core.setOutput('commit', null)
 
-  const cacheDetails = await getCacheDetails()
-  console.log('cacheDetails', cacheDetails)
-  if (cacheDetails.files.length === 0) {
-    if (input.skipEmpty) {
-      core.info('nothing to commit, working tree clean')
-      return
-    } else if (!input.allowEmpty) {
-      core.setFailed('nothing to commit, working tree clean')
-      return
-    }
+  await exec(`git status`, [], {outStream: new NullWritable()})
+
+  if (input.add) {
+    await exec(`git add ${input.add}`)
   }
 
-  const commitArgs = [
-    '--message', input.message,
-  ]
-  if (input.amend) commitArgs.push('--amend')
-  if (input.allowEmpty) commitArgs.push('--allow-empty')
-  await exec('git', [
-    '-c', `user.name=${bot.name}`,
-    '-c', `user.email=${bot.email}`,
-    'commit', ...commitArgs,
-  ])
+  const cacheDetails = await getCacheDetails()
+  if (cacheDetails.files.length === 0 && input.commitSkipEmpty) {
+    core.info('nothing to commit, working tree clean')
+    return
+  }
 
+  await exec(`git commit ${input.commit}`, [], {
+    env: {
+      GIT_AUTHOR_NAME: bot.name,
+      GIT_AUTHOR_EMAIL:bot.email,
+      GIT_COMMITTER_NAME: bot.name,
+      GIT_COMMITTER_EMAIL:bot.email,
+    }
+  })
+
+  core.info(colorize('Create commit via GitHub API', 'blue'))
   const octokit = github.getOctokit(input.token)
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
@@ -60,11 +62,14 @@ export const action = () => run(async () => {
     })),
   })
 
-  core.info('Syncing local repository ...')
   await exec('git fetch', [input.remoteName, githubCommit.sha])
   await exec('git reset', [githubCommit.sha])
 
   core.setOutput('commit', githubCommit.sha)
+
+  if (input.push) {
+    await exec(`git push ${input.push !== 'true' ? ` ${input.push}` : ''}`)
+  }
 })
 
 if (import.meta.url === `file://${process.argv[1]}`) {

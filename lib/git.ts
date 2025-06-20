@@ -1,23 +1,5 @@
 import {exec} from './actions.js'
-
-/**
- * Get the current branch name.
- * @returns branch name
- */
-export async function getCurrentBranch(): Promise<string> {
-  return await exec('git branch --show-current')
-      .then(({stdout}) => stdout.toString().trim())
-}
-
-/**
- * Get the sha of the given ref.
- * @param ref - commit ref
- * @returns sha
- */
-export async function getRev(ref: string = 'HEAD'): Promise<string> {
-  return await exec('git rev-parse', [ref])
-      .then(({stdout}) => stdout.toString().trim())
-}
+import {NullWritable} from "./common";
 
 /**
  * Get the remote url of the repository.
@@ -25,17 +7,9 @@ export async function getRev(ref: string = 'HEAD'): Promise<string> {
  * @returns remote url
  */
 export async function getRemoteUrl(remoteName: string = 'origin'): Promise<string> {
-  return await exec('git remote get-url --push', [remoteName])
-      .then(({stdout}) => stdout.toString().trim())
-}
-
-/**
- * Get the list of unmerged files.
- * @returns unmerged files
- */
-export async function getUnmergedFiles(): Promise<string[]> {
-  return await exec('git diff --name-only --diff-filter=U')
-      .then(({stdout}) => stdout.toString().split('\n').filter(Boolean))
+  return await exec('git remote get-url --push', [remoteName], {
+    outStream: new NullWritable(),
+  }).then(({stdout}) => stdout.toString().trim())
 }
 
 /**
@@ -64,8 +38,9 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
       fieldsSeparator,
     ].join('%n'),
     ref,
-  ])
-      .then(({stdout}) => stdout.toString().split('\n'))
+  ], {
+    outStream: new NullWritable(),
+  }).then(({stdout}) => stdout.toString().split('\n'))
   const eofBodyIndicatorIndex = showOutputLines.lastIndexOf(fieldsSeparator)
   const showOutputFieldLines = showOutputLines.slice(0, eofBodyIndicatorIndex)
   const showOutputFileLines = showOutputLines.slice(eofBodyIndicatorIndex + 1 + 1, -1)
@@ -136,8 +111,9 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
 export async function getCacheDetails(): Promise<CacheDetails> {
   const result = <CacheDetails>{}
 
-  const diffOutputFileLines = await exec('git diff --cached --raw --cc')
-      .then(({stdout}) => stdout.toString().split('\n').filter(Boolean))
+  const diffOutputFileLines = await exec('git diff --cached --raw --cc', [], {
+    outStream: new NullWritable(),
+  }).then(({stdout}) => stdout.toString().split('\n').filter(Boolean))
 
   result.files = diffOutputFileLines
       .map(parseRawFileDiffLine)
