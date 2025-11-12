@@ -49,7 +49,7 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
   const fieldsSeparator = '---'
   const showOutputLines = await exec('git show --raw --cc', [
     '--format=' + [
-      'commit:%H',
+      'sha:%H',
       'tree:%T',
       'parent:%P',
       'author.name:%aN',
@@ -76,42 +76,25 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
     if (!lineMatch) throw new Error(`Unexpected field line: ${line}`)
     const {lineValueName, lineValue} = lineMatch.groups as { lineValueName: string, lineValue: string }
     switch (lineValueName) {
-      case 'commit':
-        result.sha = lineValue
-        break
+      case 'sha':
+      case 'subject':
       case 'tree':
-        result.tree = lineValue
+        result[lineValueName] = lineValue
         break
       case 'parent':
         result.parents = lineValue.split(' ')
         break
-      case 'author.name':
-        result.author = result.author ?? {}
-        result.author.name = lineValue
-        break
-      case 'author.email':
-        result.author = result.author ?? {}
-        result.author.email = lineValue
-        break
       case 'author.date':
-        result.author = result.author ?? {}
-        result.author.date = new Date(lineValue)
-        break
-      case 'committer.name':
-        result.committer = result.committer ?? {}
-        result.committer.name = lineValue
-        break
-      case 'committer.email':
-        result.committer = result.committer ?? {}
-        result.committer.email = lineValue
-        break
+      case 'author.email':
+      case 'author.name':
       case 'committer.date':
-        result.committer = result.committer ?? {}
-        result.committer.date = new Date(lineValue)
+      case 'committer.email':
+      case 'committer.name': {
+        const [container, field] = lineValueName.split('.')
+        result[container] |= {}
+        result[container][field] = field === 'date' ? new Date(lineValue) : lineValue
         break
-      case 'subject':
-        result.subject = lineValue
-        break
+      }
       case 'body':
         // read all remaining lines
         result.body = [...showFieldLinesIterator].join('\n')
