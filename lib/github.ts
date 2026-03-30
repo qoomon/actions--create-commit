@@ -21,13 +21,27 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
   if (args.files.length > 0) {
     console.debug('  creating commit tree ...')
 
-    console.debug('    creating file blobs ...')
-    const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
+    console.debug('    creating commit tree entries ...')
+    const commitTreeEntries = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
       switch (status) {
         case 'A':
         case 'M': {
           console.debug('     ', path, '...')
           const content = await loadContent()
+          // Use the content field directly in the tree entry to avoid N separate
+          // blob creation API calls — GitHub will create the blobs internally as
+          // part of the single createTree call. Binary files (detected by null
+          // bytes) must still use explicit blob creation with base64 encoding
+          // since the content field only accepts UTF-8 strings.
+          const isBinary = content.indexOf(0) !== -1
+          if (!isBinary) {
+            return <TreeFile>{
+              path,
+              mode,
+              content: content.toString('utf8'),
+              type: 'blob',
+            }
+          }
           const blob = await octokitLimit(() => octokit.rest.git.createBlob({
             ...repository,
             content: content.toString('base64'),
@@ -56,7 +70,7 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
     commitTreeSha = await octokit.rest.git.createTree({
       ...repository,
       base_tree: args.parents[0],
-      tree: commitTreeBlobs,
+      tree: commitTreeEntries,
     }).then(({data}) => data.sha)
     console.debug('  commit tree', '->', commitTreeSha)
   }
@@ -118,6 +132,7 @@ export type CreateCommitArgs = {
 export type TreeFile = {
   path: string
   mode: '100644' | '100755' | '040000' | '160000' | '120000'
-  sha: string | null,
+  sha?: string | null,
+  content?: string,
   type: 'blob'
 }
