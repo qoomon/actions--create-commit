@@ -91,8 +91,9 @@ export async function getCommitDetails(ref: string = 'HEAD'): Promise<CommitDeta
       case 'committer.email':
       case 'committer.name': {
         const [container, field] = lineValueName.split('.') as [ container: 'author' | 'committer', field: string ]
-        result[container] ||= {}
-        result[container][field] = field === 'date' ? new Date(lineValue) : lineValue
+        result[container] ||= {} as CommitDetails['author']
+        const containerObj = result[container] as Record<string, unknown>
+        containerObj[field] = field === 'date' ? new Date(lineValue) : lineValue
         break
       }
       case 'body':
