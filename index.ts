@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import {throttling} from '@octokit/plugin-throttling'
 // see https://github.com/actions/toolkit for more github actions libraries
 import {bot, exec, getInput, run} from './lib/actions.js'
 import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
@@ -43,7 +44,20 @@ export const action = () => run(async () => {
     'commit', ...commitArgs,
   ])
 
-  const octokit = github.getOctokit(input.token)
+  const octokit = github.getOctokit(input.token, {
+    throttle: {
+      onRateLimit: (retryAfter, options, octokit, retryCount) => {
+        octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url}`)
+        octokit.log.info(`Retrying after ${retryAfter} seconds!`)
+        return true
+      },
+      onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
+        octokit.log.warn(`Secondary rate limit hit for request ${options.method} ${options.url}`)
+        octokit.log.info(`Retrying after ${retryAfter} seconds!`)
+        return true
+      },
+    },
+  }, throttling)
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
