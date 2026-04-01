@@ -21,46 +21,49 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
   if (args.files.length > 0) {
     console.debug('  creating commit tree ...')
 
-    console.debug('    creating commit tree entries ...')
     const commitTreeEntries = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
+      console.debug('     ', path, '...')
       switch (status) {
         case 'A':
         case 'M': {
-          console.debug('     ', path, '...')
           const content = await loadContent()
           // Use the content field directly in the tree entry to avoid N separate
           // blob creation API calls — GitHub will create the blobs internally as
-          // part of the single createTree call. Binary files must still use
-          // explicit blob creation with base64 encoding since the content field
-          // only accepts UTF-8 strings.
-          if (!isBinaryContent(content)) {
-            return <TreeFile>{
-              path,
-              mode,
-              content: content.toString('utf8'),
-              type: 'blob',
-            }
+          // part of the single createTree call. Binary files (detected by null
+          // bytes) must still use explicit blob creation with base64 encoding
+          // since the content field only accepts UTF-8 strings.
+          const isBinary = isBinaryContent(content)
+          if (isBinary) {
+              console.debug('    creating blob ...')
+              const blob = await octokitLimit(() => octokit.rest.git.createBlob({
+                ...repository,
+                content: content.toString('base64'),
+                encoding: 'base64',
+              })).then(({data}) => data)
+            
+              return <TreeFile>{
+                path,
+                mode,
+                sha: blob.sha,
+                type: 'blob',
+              }
           }
-          const blob = await octokitLimit(() => octokit.rest.git.createBlob({
-            ...repository,
-            content: content.toString('base64'),
-            encoding: 'base64',
-          })).then(({data}) => data)
-          console.debug('     ', path, '->', blob.sha)
+
           return <TreeFile>{
             path,
             mode,
-            sha: blob.sha,
+            content: content.toString('utf8'),
             type: 'blob',
           }
+
         }
         case 'D':
-          return {
+          return <TreeFile>{
             path,
             mode: '100644',
             sha: null,
             type: 'blob',
-          } satisfies TreeFile
+          }
         default:
           throw new Error(`Unexpected file status: ${status}`)
       }
