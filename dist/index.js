@@ -33870,9 +33870,6 @@ var p_limit_default = /*#__PURE__*/__nccwpck_require__.n(p_limit);
 ;// CONCATENATED MODULE: ./lib/github.ts
 
 const octokitLimit = p_limit_default()(10);
-// GitHub's createTree API content field is limited to ~100 KB per entry.
-// Files exceeding this limit must use explicit createBlob + sha reference.
-const CREATE_TREE_CONTENT_LIMIT = 100 * 1024;
 /**
  * Create a commit authored and committed by octokit token identity.
  * In case of octokit token identity is a GitHub App the commit will be signed as well.
@@ -33886,36 +33883,23 @@ async function createCommit(octokit, repository, args) {
     let commitTreeSha = args.tree;
     if (args.files.length > 0) {
         console.debug('  creating commit tree ...');
-        const commitTreeEntries = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => {
-            console.debug('     ', path, '...');
+        console.debug('    creating file blobs ...');
+        const commitTreeBlobs = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => {
             switch (status) {
                 case 'A':
                 case 'M': {
+                    console.debug('     ', path, '...');
                     const content = await loadContent();
-                    // Use the content field directly in the tree entry to avoid N separate
-                    // blob creation API calls — GitHub will create the blobs internally as
-                    // part of the single createTree call. Binary files and files exceeding
-                    // the createTree content size limit must still use explicit blob
-                    // creation with base64 encoding since the content field only accepts
-                    // UTF-8 strings up to ~100 KB.
-                    if (isBinaryContent(content) || content.length > CREATE_TREE_CONTENT_LIMIT) {
-                        const blob = await octokitLimit(() => octokit.rest.git.createBlob({
-                            ...repository,
-                            content: content.toString('base64'),
-                            encoding: 'base64',
-                        })).then(({ data }) => data);
-                        console.debug('     ', path, '->', blob.sha);
-                        return {
-                            path,
-                            mode: mode,
-                            sha: blob.sha,
-                            type: 'blob',
-                        };
-                    }
+                    const blob = await octokitLimit(() => octokit.rest.git.createBlob({
+                        ...repository,
+                        content: content.toString('base64'),
+                        encoding: 'base64',
+                    })).then(({ data }) => data);
+                    console.debug('     ', path, '->', blob.sha);
                     return {
                         path,
-                        mode: mode,
-                        content: content.toString('utf8'),
+                        mode,
+                        sha: blob.sha,
                         type: 'blob',
                     };
                 }
@@ -33933,7 +33917,7 @@ async function createCommit(octokit, repository, args) {
         commitTreeSha = await octokit.rest.git.createTree({
             ...repository,
             base_tree: args.parents[0],
-            tree: commitTreeEntries,
+            tree: commitTreeBlobs,
         }).then(({ data }) => data.sha);
         console.debug('  commit tree', '->', commitTreeSha);
     }
@@ -33972,16 +33956,6 @@ function parseRepositoryFromUrl(url) {
         owner: urlMatch.groups.owner,
         repo: urlMatch.groups.repo,
     };
-}
-/**
- * Detect binary content by checking for null bytes (0x00).
- * Text files (including empty files) contain no null bytes,
- * while binary files almost always do.
- * @param content - file content buffer
- * @returns true if the content contains null bytes indicating binary data
- */
-function isBinaryContent(content) {
-    return content.includes(0x00);
 }
 
 ;// CONCATENATED MODULE: ./index.ts
