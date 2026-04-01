@@ -30,11 +30,10 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
           const content = await loadContent()
           // Use the content field directly in the tree entry to avoid N separate
           // blob creation API calls — GitHub will create the blobs internally as
-          // part of the single createTree call. Binary files (detected by null
-          // bytes) must still use explicit blob creation with base64 encoding
-          // since the content field only accepts UTF-8 strings.
-          const isBinary = content.indexOf(0) !== -1
-          if (!isBinary) {
+          // part of the single createTree call. Binary files must still use
+          // explicit blob creation with base64 encoding since the content field
+          // only accepts UTF-8 strings.
+          if (!isBinaryContent(content)) {
             return <TreeFile>{
               path,
               mode,
@@ -114,6 +113,17 @@ export function parseRepositoryFromUrl(url: string) {
     owner: urlMatch.groups!.owner!,
     repo: urlMatch.groups!.repo!,
   }
+}
+
+/**
+ * Detect binary content by checking for null bytes (0x00).
+ * Text files (including empty files) contain no null bytes,
+ * while binary files almost always do.
+ * @param content - file content buffer
+ * @returns true if the content contains null bytes indicating binary data
+ */
+function isBinaryContent(content: Buffer): boolean {
+  return content.includes(0x00)
 }
 
 export type CreateCommitArgs = {
