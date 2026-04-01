@@ -3,6 +3,10 @@ import pLimit from 'p-limit'
 
 const octokitLimit = pLimit(10)
 
+// GitHub's createTree API content field is limited to ~100 KB per entry.
+// Files exceeding this limit must use explicit createBlob + sha reference.
+const CREATE_TREE_CONTENT_LIMIT = 100 * 1024
+
 /**
  * Create a commit authored and committed by octokit token identity.
  * In case of octokit token identity is a GitHub App the commit will be signed as well.
@@ -29,24 +33,23 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
           const content = await loadContent()
           // Use the content field directly in the tree entry to avoid N separate
           // blob creation API calls — GitHub will create the blobs internally as
-          // part of the single createTree call. Binary files (detected by null
-          // bytes) must still use explicit blob creation with base64 encoding
-          // since the content field only accepts UTF-8 strings.
-          const isBinary = isBinaryContent(content)
-          if (isBinary) {
-              console.debug('    creating blob ...')
-              const blob = await octokitLimit(() => octokit.rest.git.createBlob({
-                ...repository,
-                content: content.toString('base64'),
-                encoding: 'base64',
-              })).then(({data}) => data)
-            
-              return <TreeFile>{
-                path,
-                mode,
-                sha: blob.sha,
-                type: 'blob',
-              }
+          // part of the single createTree call. Binary files and files exceeding
+          // the createTree content size limit must still use explicit blob
+          // creation with base64 encoding since the content field only accepts
+          // UTF-8 strings up to ~100 KB.
+          if (isBinaryContent(content) || content.length > CREATE_TREE_CONTENT_LIMIT) {
+            const blob = await octokitLimit(() => octokit.rest.git.createBlob({
+              ...repository,
+              content: content.toString('base64'),
+              encoding: 'base64',
+            })).then(({data}) => data)
+            console.debug('     ', path, '->', blob.sha)
+            return <TreeFile>{
+              path,
+              mode,
+              sha: blob.sha,
+              type: 'blob',
+            }
           }
 
           return <TreeFile>{
@@ -55,7 +58,6 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
             content: content.toString('utf8'),
             type: 'blob',
           }
-
         }
         case 'D':
           return <TreeFile>{
