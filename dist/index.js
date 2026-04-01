@@ -34006,17 +34006,13 @@ const action = () => run(async () => {
         throttle: {
             onRateLimit: (retryAfter, options, octokit, retryCount) => {
                 octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url}`);
-                if (retryCount < 1) {
-                    octokit.log.info(`Retrying after ${retryAfter} seconds!`);
-                    return true;
-                }
+                octokit.log.info(`Retrying after ${retryAfter} seconds!`);
+                return true;
             },
             onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
                 octokit.log.warn(`Secondary rate limit hit for request ${options.method} ${options.url}`);
-                if (retryCount < 1) {
-                    octokit.log.info(`Retrying after ${retryAfter} seconds!`);
-                    return true;
-                }
+                octokit.log.info(`Retrying after ${retryAfter} seconds!`);
+                return true;
             },
         },
     }, dist_node.throttling);
