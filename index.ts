@@ -22,7 +22,6 @@ export const action = () => run(async () => {
   core.setOutput('commit', null)
 
   const cacheDetails = await getCacheDetails()
-  console.log('cacheDetails', cacheDetails)
   if (cacheDetails.files.length === 0) {
     if (input.skipEmpty) {
       core.info('nothing to commit, working tree clean')
