@@ -33907,14 +33907,14 @@ async function createCommit(octokit, repository, args) {
                         console.debug('     ', path, '->', blob.sha);
                         return {
                             path,
-                            mode,
+                            mode: mode,
                             sha: blob.sha,
                             type: 'blob',
                         };
                     }
                     return {
                         path,
-                        mode,
+                        mode: mode,
                         content: content.toString('utf8'),
                         type: 'blob',
                     };

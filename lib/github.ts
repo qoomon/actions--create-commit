@@ -44,28 +44,28 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
               encoding: 'base64',
             })).then(({data}) => data)
             console.debug('     ', path, '->', blob.sha)
-            return <TreeFile>{
+            return {
               path,
-              mode,
+              mode: mode as TreeFileMode,
               sha: blob.sha,
               type: 'blob',
-            }
+            } satisfies TreeFile
           }
 
-          return <TreeFile>{
+          return {
             path,
-            mode,
+            mode: mode as TreeFileMode,
             content: content.toString('utf8'),
             type: 'blob',
-          }
+          } satisfies TreeFile
         }
         case 'D':
-          return <TreeFile>{
+          return {
             path,
             mode: '100644',
             sha: null,
             type: 'blob',
-          }
+          } satisfies TreeFile
         default:
           throw new Error(`Unexpected file status: ${status}`)
       }
@@ -144,10 +144,9 @@ export type CreateCommitArgs = {
   }[],
 }
 
-export type TreeFile = {
-  path: string
-  mode: '100644' | '100755' | '040000' | '160000' | '120000'
-  sha?: string | null,
-  content?: string,
-  type: 'blob'
-}
+type TreeFileMode = '100644' | '100755' | '040000' | '160000' | '120000'
+
+export type TreeFile =
+  | { path: string; mode: TreeFileMode; content: string; type: 'blob' }
+  | { path: string; mode: TreeFileMode; sha: string; type: 'blob' }
+  | { path: string; mode: TreeFileMode; sha: null; type: 'blob' }
