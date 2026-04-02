@@ -1,6 +1,10 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {throttling} from '@octokit/plugin-throttling'
+import Bottleneck from "bottleneck"
+// @ts-expect-error No types for "bottleneck/light"
+import BottleneckLight from "bottleneck/light.js";
+import type TBottleneck from "bottleneck";
 // see https://github.com/actions/toolkit for more github actions libraries
 import {bot, exec, getInput, run} from './lib/actions.js'
 import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
@@ -56,7 +60,9 @@ export const action = () => run(async () => {
         return true
       },
     },
-  }, throttling)
+  }, throttling);
+  (octokit as any).throttle.write.key("no-id").updateSettings({ maxConcurrent: 10, minTime: 0 });
+
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
