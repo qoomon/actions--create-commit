@@ -28,12 +28,13 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
         case 'M': {
           console.debug('     ', path, '...')
           const content = await loadContent()
-          const blob = await octokitLimit(() => octokit.rest.git.createBlob({
+
+          const blob = await octokit.rest.git.createBlob({
             ...repository,
             content: content.toString('base64'),
             encoding: 'base64',
-          })).then(({data}) => data)
-          console.debug('     ', path, '->', blob.sha)
+          }).then(({data}) => data)
+
           return <TreeFile>{
             path,
             mode,
