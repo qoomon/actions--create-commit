@@ -35,6 +35,7 @@ export async function createCommit(octokit: ReturnType<typeof github.getOctokit>
             encoding: 'base64',
           }).then(({data}) => data)
 
+          console.debug('     ', path, 'uploaded.')
           return <TreeFile>{
             path,
             mode,

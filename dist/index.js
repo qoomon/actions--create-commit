@@ -38374,6 +38374,7 @@ async function createCommit(octokit, repository, args) {
                         content: content.toString('base64'),
                         encoding: 'base64',
                     }).then(({ data }) => data);
+                    console.debug('     ', path, 'uploaded.');
                     return {
                         path,
                         mode,
