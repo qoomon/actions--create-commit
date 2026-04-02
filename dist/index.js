@@ -38169,6 +38169,7 @@ async function actions_exec(commandLine, args, options) {
     const stdoutChunks = [];
     const stderrChunks = [];
     const status = await exec_exec(commandLine, args, {
+        silent: true,
         ...options,
         listeners: {
             stdout(data) {

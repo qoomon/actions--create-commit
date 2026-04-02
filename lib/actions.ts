@@ -48,6 +48,7 @@ export async function exec(commandLine: string, args?: string[], options?: ExecO
   const stdoutChunks = [] as Uint8Array[]
   const stderrChunks = [] as Uint8Array[]
   const status = await _exec.exec(commandLine, args, {
+    silent: true,
     ...options,
     listeners: {
       stdout(data) {
