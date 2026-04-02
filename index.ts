@@ -61,7 +61,7 @@ export const action = () => run(async () => {
       },
     },
   }, throttling);
-  (octokit as any).throttle.write.key("no-id").updateSettings({ maxConcurrent: 10, minTime: 0 });
+  (octokit as any).throttle.write.key("octokit-write").updateSettings({ maxConcurrent: 10, minTime: 0 });
 
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)

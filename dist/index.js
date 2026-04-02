@@ -38494,7 +38494,7 @@ const action = () => run(async () => {
             },
         },
     }, throttling);
-    octokit.throttle.write.key("no-id").updateSettings({ maxConcurrent: 10, minTime: 0 });
+    octokit.throttle.write.key("octokit-write").updateSettings({ maxConcurrent: 10, minTime: 0 });
     const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
