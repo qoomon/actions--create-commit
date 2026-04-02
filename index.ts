@@ -86,6 +86,7 @@ export const action = () => run(async () => {
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
 
+  core.startGroup('creating commit...')
   const githubCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
@@ -102,6 +103,9 @@ export const action = () => run(async () => {
   core.info('Syncing local repository ...')
   await exec('git fetch', [input.remoteName, githubCommit.sha])
   await exec('git reset', [githubCommit.sha])
+  core.endGroup()
+
+  console.log()
   exec(`git show -s --format="[${await getCurrentBranch()} %h] %s" --shortstat --summary`, [githubCommit.sha])
       .then(({stdout}) => console.info(stdout.toString()))
 

@@ -16,18 +16,16 @@ export async function createCommit(
     repository: { owner: string, repo: string },
     args: CreateCommitArgs,
 ) {
-  console.debug('creating commit ...')
-
   let commitTreeSha = args.tree
   if (args.files.length > 0) {
-    console.debug('  creating commit tree ...')
-
-    console.debug('    creating file blobs ...')
+    console.debug('  creating commit tree...')
     const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
+
       switch (status) {
         case 'A':
         case 'M': {
-          console.debug('     ', path, '...')
+          console.debug('     ', path, '- create blob via GitHub API...')
+
           const content = await loadContent()
 
           const blob = await octokit.rest.git.createBlob({
@@ -36,7 +34,7 @@ export async function createCommit(
             encoding: 'base64',
           }).then(({data}) => data)
 
-          console.debug('     ', path, 'uploaded.')
+          console.debug('     ', path, '- ...blob created.')
           return <TreeFile>{
             path,
             mode,
@@ -45,6 +43,7 @@ export async function createCommit(
           }
         }
         case 'D':
+          console.debug('     ', path)
           return {
             path,
             mode: '100644',

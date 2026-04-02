@@ -33520,13 +33520,13 @@ function info(message) {
  * @param name The name of the output group
  */
 function startGroup(name) {
-    issue('group', name);
+    command_issue('group', name);
 }
 /**
  * End an output group.
  */
 function endGroup() {
-    issue('endgroup');
+    command_issue('endgroup');
 }
 /**
  * Wrap an asynchronous function call in a group.
@@ -38359,23 +38359,21 @@ const octokitLimit = p_limit_default()(10);
  * @returns created commit
  */
 async function createCommit(octokit, repository, args) {
-    console.debug('creating commit ...');
     let commitTreeSha = args.tree;
     if (args.files.length > 0) {
-        console.debug('  creating commit tree ...');
-        console.debug('    creating file blobs ...');
+        console.debug('  creating commit tree...');
         const commitTreeBlobs = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => {
             switch (status) {
                 case 'A':
                 case 'M': {
-                    console.debug('     ', path, '...');
+                    console.debug('     ', path, '- create blob via GitHub API...');
                     const content = await loadContent();
                     const blob = await octokit.rest.git.createBlob({
                         ...repository,
                         content: content.toString('base64'),
                         encoding: 'base64',
                     }).then(({ data }) => data);
-                    console.debug('     ', path, 'uploaded.');
+                    console.debug('     ', path, '- ...blob created.');
                     return {
                         path,
                         mode,
@@ -38384,6 +38382,7 @@ async function createCommit(octokit, repository, args) {
                     };
                 }
                 case 'D':
+                    console.debug('     ', path);
                     return {
                         path,
                         mode: '100644',
@@ -38517,6 +38516,7 @@ const action = () => run(async () => {
     const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
+    startGroup('creating commit...');
     const githubCommit = await createCommit(octokit, repository, {
         subject: headCommit.subject,
         body: headCommit.body,
@@ -38532,6 +38532,8 @@ const action = () => run(async () => {
     info('Syncing local repository ...');
     await actions_exec('git fetch', [input.remoteName, githubCommit.sha]);
     await actions_exec('git reset', [githubCommit.sha]);
+    endGroup();
+    console.log();
     actions_exec(`git show -s --format="[${await getCurrentBranch()} %h] %s" --shortstat --summary`, [githubCommit.sha])
         .then(({ stdout }) => console.info(stdout.toString()));
     setOutput('commit', githubCommit.sha);
