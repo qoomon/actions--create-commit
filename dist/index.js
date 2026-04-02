@@ -38195,7 +38195,7 @@ async function actions_exec(commandLine, args, options) {
  * @returns branch name
  */
 async function getCurrentBranch() {
-    return await exec('git branch --show-current')
+    return await actions_exec('git branch --show-current')
         .then(({ stdout }) => stdout.toString().trim());
 }
 /**
@@ -38495,14 +38495,21 @@ const action = () => run(async () => {
         '-c', `user.email=${bot.email}`,
         'commit', ...commitArgs,
     ]);
+    let throttlingRetryCount = -1;
     const octokit = getOctokit(input.token, {
         throttle: {
             onRateLimit: (retryAfter, options, octokit, retryCount) => {
-                octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url} - Retrying after ${retryAfter} seconds! retryCount is ${retryCount}`);
+                if (retryCount !== throttlingRetryCount) {
+                    octokit.log.warn(`GitHub Api request quota exhausted - Retrying after ${retryAfter} seconds...`);
+                    throttlingRetryCount = retryCount;
+                }
                 return true;
             },
             onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
-                octokit.log.warn(`Secondary rate limit hit for request ${options.method} ${options.url} - Retrying after ${retryAfter} seconds! retryCount is ${retryCount}`);
+                if (retryCount !== throttlingRetryCount) {
+                    octokit.log.warn(`GitHub Api request quota exhausted - Retrying after ${retryAfter} seconds...`);
+                    throttlingRetryCount = retryCount;
+                }
                 return true;
             },
         },
@@ -38525,6 +38532,8 @@ const action = () => run(async () => {
     info('Syncing local repository ...');
     await actions_exec('git fetch', [input.remoteName, githubCommit.sha]);
     await actions_exec('git reset', [githubCommit.sha]);
+    actions_exec(`git show -s --format="[${await getCurrentBranch()} %h] %s" --shortstat --summary`, [githubCommit.sha])
+        .then(({ stdout }) => console.info(stdout.toString()));
     setOutput('commit', githubCommit.sha);
 });
 if (import.meta.url === `file://${process.argv[1]}`) {

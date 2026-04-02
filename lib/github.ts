@@ -11,10 +11,11 @@ const octokitLimit = pLimit(10)
  * @param args - commit details and file content reader
  * @returns created commit
  */
-export async function createCommit(octokit: ReturnType<typeof github.getOctokit>, repository: {
-  owner: string,
-  repo: string
-}, args: CreateCommitArgs) {
+export async function createCommit(
+    octokit: ReturnType<typeof github.getOctokit>,
+    repository: { owner: string, repo: string },
+    args: CreateCommitArgs,
+) {
   console.debug('creating commit ...')
 
   let commitTreeSha = args.tree

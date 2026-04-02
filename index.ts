@@ -1,13 +1,11 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {throttling} from '@octokit/plugin-throttling'
-import Bottleneck from "bottleneck"
 // @ts-expect-error No types for "bottleneck/light"
 import BottleneckLight from "bottleneck/light.js";
-import type TBottleneck from "bottleneck";
 // see https://github.com/actions/toolkit for more github actions libraries
 import {bot, exec, getInput, run} from './lib/actions.js'
-import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
+import {getCacheDetails, getCommitDetails, getCurrentBranch, getRemoteUrl, readFile} from './lib/git.js'
 import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
 
 {
@@ -63,14 +61,22 @@ export const action = () => run(async () => {
     'commit', ...commitArgs,
   ])
 
+  let throttlingRetryCount = -1
   const octokit = github.getOctokit(input.token, {
     throttle: {
       onRateLimit: (retryAfter, options, octokit, retryCount) => {
-        octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url} - Retrying after ${retryAfter} seconds! retryCount is ${retryCount}`)
+        if(retryCount !== throttlingRetryCount){
+          octokit.log.warn(`GitHub Api request quota exhausted - Retrying after ${retryAfter} seconds...`)
+          throttlingRetryCount = retryCount;
+        }
         return true
+
       },
       onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
-        octokit.log.warn(`Secondary rate limit hit for request ${options.method} ${options.url} - Retrying after ${retryAfter} seconds! retryCount is ${retryCount}`)
+        if(retryCount !== throttlingRetryCount){
+          octokit.log.warn(`GitHub Api request quota exhausted - Retrying after ${retryAfter} seconds...`)
+          throttlingRetryCount = retryCount;
+        }
         return true
       },
     },
@@ -79,6 +85,7 @@ export const action = () => run(async () => {
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
+
   const githubCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
@@ -95,6 +102,8 @@ export const action = () => run(async () => {
   core.info('Syncing local repository ...')
   await exec('git fetch', [input.remoteName, githubCommit.sha])
   await exec('git reset', [githubCommit.sha])
+  exec(`git show -s --format="[${await getCurrentBranch()} %h] %s" --shortstat --summary`, [githubCommit.sha])
+      .then(({stdout}) => console.info(stdout.toString()))
 
   core.setOutput('commit', githubCommit.sha)
 })
