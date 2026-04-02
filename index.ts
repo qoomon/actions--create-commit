@@ -16,7 +16,7 @@ import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
   BottleneckLight.Group = function (options: any) {
     const overrides: Record<string, Partial<typeof options>> = {
       "octokit-global": {maxConcurrent: 10},
-      "octokit-write": {maxConcurrent: 10, minTime: 1000},
+      "octokit-write": {maxConcurrent: 10, minTime: 100},
     };
 
     const patched = {...options, ...(overrides[options.id] ?? {})};

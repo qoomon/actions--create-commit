@@ -38453,7 +38453,7 @@ function parseRepositoryFromUrl(url) {
     (light_default()).Group = function (options) {
         const overrides = {
             "octokit-global": { maxConcurrent: 10 },
-            "octokit-write": { maxConcurrent: 10, minTime: 1000 },
+            "octokit-write": { maxConcurrent: 10, minTime: 100 },
         };
         const patched = { ...options, ...(overrides[options.id] ?? {}) };
         return new OriginalGroup(patched);
