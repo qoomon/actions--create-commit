@@ -10,6 +10,22 @@ import {bot, exec, getInput, run} from './lib/actions.js'
 import {getCacheDetails, getCommitDetails, getRemoteUrl, readFile} from './lib/git.js'
 import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
 
+{
+  const OriginalGroup = BottleneckLight.Group;
+
+  BottleneckLight.Group = function (options: any) {
+    const overrides: Record<string, Partial<typeof options>> = {
+      "octokit-global": {maxConcurrent: 10},
+      "octokit-write": {maxConcurrent: 10, minTime: 10},
+    };
+
+    const patched = {...options, ...(overrides[options.id] ?? {})};
+    return new OriginalGroup(patched);
+  };
+
+  BottleneckLight.Group.prototype = OriginalGroup.prototype;
+}
+
 export const action = () => run(async () => {
   const input = {
     token: getInput('token', {required: true})!,
@@ -61,7 +77,6 @@ export const action = () => run(async () => {
       },
     },
   }, throttling);
-  (octokit as any).throttle.write.key("octokit-write").updateSettings({ maxConcurrent: 10, minTime: 0 });
 
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)

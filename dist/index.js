@@ -37896,6 +37896,7 @@ function getOctokit(token, options, ...additionalPlugins) {
 //# sourceMappingURL=github.js.map
 // EXTERNAL MODULE: ./node_modules/bottleneck/light.js
 var light = __nccwpck_require__(3251);
+var light_default = /*#__PURE__*/__nccwpck_require__.n(light);
 ;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-throttling/dist-bundle/index.js
 // pkg/dist-src/index.js
 
@@ -38441,10 +38442,24 @@ function parseRepositoryFromUrl(url) {
 
 
 
+// @ts-expect-error No types for "bottleneck/light"
+
 // see https://github.com/actions/toolkit for more github actions libraries
 
 
 
+{
+    const OriginalGroup = (light_default()).Group;
+    (light_default()).Group = function (options) {
+        const overrides = {
+            "octokit-global": { maxConcurrent: 10 },
+            "octokit-write": { maxConcurrent: 10, minTime: 10 },
+        };
+        const patched = { ...options, ...(overrides[options.id] ?? {}) };
+        return new OriginalGroup(patched);
+    };
+    (light_default()).Group.prototype = OriginalGroup.prototype;
+}
 const action = () => run(async () => {
     const input = {
         token: actions_getInput('token', { required: true }),
@@ -38494,7 +38509,6 @@ const action = () => run(async () => {
             },
         },
     }, throttling);
-    octokit.throttle.write.key("octokit-write").updateSettings({ maxConcurrent: 10, minTime: 0 });
     const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
