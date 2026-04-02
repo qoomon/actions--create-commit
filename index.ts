@@ -16,7 +16,7 @@ import {createCommit, parseRepositoryFromUrl} from './lib/github.js'
   BottleneckLight.Group = function (options: any) {
     const overrides: Record<string, Partial<typeof options>> = {
       "octokit-global": {maxConcurrent: 10},
-      "octokit-write": {maxConcurrent: 10, minTime: 100},
+      "octokit-write": {maxConcurrent: 10, minTime: 0},
     };
 
     const patched = {...options, ...(overrides[options.id] ?? {})};
@@ -66,13 +66,11 @@ export const action = () => run(async () => {
   const octokit = github.getOctokit(input.token, {
     throttle: {
       onRateLimit: (retryAfter, options, octokit, retryCount) => {
-        octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url}`)
-        octokit.log.info(`Retrying after ${retryAfter} seconds!`)
+        octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url} - Retrying after ${retryAfter} seconds! retryCount is ${retryCount}`)
         return true
       },
       onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
-        octokit.log.warn(`Secondary rate limit hit for request ${options.method} ${options.url}`)
-        octokit.log.info(`Retrying after ${retryAfter} seconds!`)
+        octokit.log.warn(`Secondary rate limit hit for request ${options.method} ${options.url} - Retrying after ${retryAfter} seconds! retryCount is ${retryCount}`)
         return true
       },
     },
