@@ -38489,12 +38489,11 @@ const action = () => run(async () => {
         commitArgs.push('--amend');
     if (input.allowEmpty)
         commitArgs.push('--allow-empty');
-    info('Create local unsigned commit ...');
     await actions_exec('git', [
         '-c', `user.name=${bot.name}`,
         '-c', `user.email=${bot.email}`,
         'commit', ...commitArgs,
-    ], { silent: false });
+    ]).then((result) => console.info(result.stdout + '\n'));
     let throttlingRetryCount = -1;
     const octokit = getOctokit(input.token, {
         throttle: {
