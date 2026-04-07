@@ -55,11 +55,13 @@ export const action = () => run(async () => {
   ]
   if (input.amend) commitArgs.push('--amend')
   if (input.allowEmpty) commitArgs.push('--allow-empty')
+
+  core.info('Create local unsigned commit ...')
   await exec('git', [
     '-c', `user.name=${bot.name}`,
     '-c', `user.email=${bot.email}`,
     'commit', ...commitArgs,
-  ])
+  ],{ silent: false })
 
   let throttlingRetryCount = -1
   const octokit = github.getOctokit(input.token, {
@@ -70,7 +72,6 @@ export const action = () => run(async () => {
           throttlingRetryCount = retryCount;
         }
         return true
-
       },
       onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
         if(retryCount !== throttlingRetryCount){
@@ -86,7 +87,7 @@ export const action = () => run(async () => {
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
 
-  core.startGroup('creating commit...')
+  core.startGroup('Creating signed commit via GitHup API ...')
   const githubCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
@@ -100,14 +101,10 @@ export const action = () => run(async () => {
     })),
   })
 
-  core.info('Syncing local repository ...')
+  core.info('Replace local commit with signed commit ...')
   await exec('git fetch', [input.remoteName, githubCommit.sha])
   await exec('git reset', [githubCommit.sha])
   core.endGroup()
-
-  console.log()
-  exec(`git show -s --format="[${await getCurrentBranch()} %h] %s" --shortstat --summary`, [githubCommit.sha])
-      .then(({stdout}) => console.info(stdout.toString()))
 
   core.setOutput('commit', githubCommit.sha)
 })

@@ -38195,7 +38195,7 @@ async function actions_exec(commandLine, args, options) {
  * @returns branch name
  */
 async function getCurrentBranch() {
-    return await actions_exec('git branch --show-current')
+    return await exec('git branch --show-current')
         .then(({ stdout }) => stdout.toString().trim());
 }
 /**
@@ -38489,11 +38489,12 @@ const action = () => run(async () => {
         commitArgs.push('--amend');
     if (input.allowEmpty)
         commitArgs.push('--allow-empty');
+    info('Create local unsigned commit ...');
     await actions_exec('git', [
         '-c', `user.name=${bot.name}`,
         '-c', `user.email=${bot.email}`,
         'commit', ...commitArgs,
-    ]);
+    ], { silent: false });
     let throttlingRetryCount = -1;
     const octokit = getOctokit(input.token, {
         throttle: {
@@ -38516,7 +38517,7 @@ const action = () => run(async () => {
     const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
-    startGroup('creating commit...');
+    startGroup('Creating signed commit via GitHup API ...');
     const githubCommit = await createCommit(octokit, repository, {
         subject: headCommit.subject,
         body: headCommit.body,
@@ -38529,13 +38530,10 @@ const action = () => run(async () => {
             loadContent: async () => readFile(file.path, headCommit.sha),
         })),
     });
-    info('Syncing local repository ...');
+    info('Replace local commit with signed commit ...');
     await actions_exec('git fetch', [input.remoteName, githubCommit.sha]);
     await actions_exec('git reset', [githubCommit.sha]);
     endGroup();
-    console.log();
-    actions_exec(`git show -s --format="[${await getCurrentBranch()} %h] %s" --shortstat --summary`, [githubCommit.sha])
-        .then(({ stdout }) => console.info(stdout.toString()));
     setOutput('commit', githubCommit.sha);
 });
 if (import.meta.url === `file://${process.argv[1]}`) {
