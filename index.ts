@@ -66,6 +66,7 @@ export const action = () => run(async () => {
     },
     silent: false,
   })
+  console.log('')
 
   core.startGroup('Creating signed commit via GitHup API ...')
 
@@ -74,14 +75,14 @@ export const action = () => run(async () => {
     throttle: {
       onRateLimit: (retryAfter, options, octokit, retryCount) => {
         if(retryCount !== throttlingRetryCount){
-          octokit.log.warn(`GitHub Api request quota exhausted - Retrying after ${retryAfter} seconds...`)
+          octokit.log.warn(`GitHub Api request quota exhausted - Continue after ${retryAfter} seconds...`)
           throttlingRetryCount = retryCount;
         }
         return true
       },
       onSecondaryRateLimit: (retryAfter, options, octokit, retryCount) => {
         if(retryCount !== throttlingRetryCount){
-          octokit.log.warn(`GitHub Api request quota exhausted - Retrying after ${retryAfter} seconds...`)
+          octokit.log.warn(`GitHub Api request quota exhausted - Continue after ${retryAfter} seconds...`)
           throttlingRetryCount = retryCount;
         }
         return true
