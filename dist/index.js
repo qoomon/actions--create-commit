@@ -38339,11 +38339,16 @@ const action = () => run(async () => {
         commitArgs.push('--amend');
     if (input.allowEmpty)
         commitArgs.push('--allow-empty');
-    await actions_exec('git', [
-        '-c', `user.name=${bot.name}`,
-        '-c', `user.email=${bot.email}`,
-        'commit', ...commitArgs,
-    ]).then((result) => console.info(result.stdout + '\n'));
+    await actions_exec('git', ['commit', ...commitArgs], {
+        env: {
+            ...process.env,
+            GIT_AUTHOR_NAME: bot.name,
+            GIT_AUTHOR_EMAIL: bot.email,
+            GIT_COMMITTER_NAME: bot.name,
+            GIT_COMMITTER_EMAIL: bot.email,
+        },
+        silent: false,
+    });
     startGroup('Creating signed commit via GitHup API ...');
     let throttlingRetryCount = -1;
     const octokit = getOctokit(input.token, {
