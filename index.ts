@@ -62,6 +62,8 @@ export const action = () => run(async () => {
     'commit', ...commitArgs,
   ]).then((result) => console.info(result.stdout + '\n'))
 
+  core.startGroup('Creating signed commit via GitHup API ...')
+
   let throttlingRetryCount = -1
   const octokit = github.getOctokit(input.token, {
     throttle: {
@@ -85,8 +87,6 @@ export const action = () => run(async () => {
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
-
-  core.startGroup('Creating signed commit via GitHup API ...')
   const githubCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
@@ -100,9 +100,13 @@ export const action = () => run(async () => {
     })),
   })
 
-  core.info('Replace local commit with signed commit ...')
-  await exec('git fetch', [input.remoteName, githubCommit.sha])
-  await exec('git reset', [githubCommit.sha])
+  core.endGroup()
+
+  core.startGroup('Replace local commit with signed commit ...')
+
+  await exec('git fetch', [input.remoteName, githubCommit.sha], {silent: false})
+  await exec('git reset', [githubCommit.sha],  {silent: false})
+
   core.endGroup()
 
   core.setOutput('commit', githubCommit.sha)

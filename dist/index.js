@@ -38361,19 +38361,23 @@ const octokitLimit = p_limit_default()(10);
 async function createCommit(octokit, repository, args) {
     let commitTreeSha = args.tree;
     if (args.files.length > 0) {
-        console.debug('  creating commit tree...');
-        const commitTreeBlobs = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => {
+        console.log('Creating commit tree...');
+        let progress = 0;
+        const commitTreeBlobs = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => (async function () {
             switch (status) {
                 case 'A':
                 case 'M': {
-                    console.debug('     ', path, '- create blob via GitHub API...');
                     const content = await loadContent();
                     const blob = await octokit.rest.git.createBlob({
                         ...repository,
                         content: content.toString('base64'),
                         encoding: 'base64',
-                    }).then(({ data }) => data);
-                    console.debug('     ', path, '- ...blob created.');
+                    })
+                        .then(({ data }) => data)
+                        .catch((error) => {
+                        console.debug('Creating blob failed for file', path, 'with error', error);
+                        throw error;
+                    });
                     return {
                         path,
                         mode,
@@ -38382,7 +38386,6 @@ async function createCommit(octokit, repository, args) {
                     };
                 }
                 case 'D':
-                    console.debug('     ', path);
                     return {
                         path,
                         mode: '100644',
@@ -38392,14 +38395,19 @@ async function createCommit(octokit, repository, args) {
                 default:
                     throw new Error(`Unexpected file status: ${status}`);
             }
-        }));
+        })().finally(() => {
+            progress++;
+            // log progress
+            console.log(`${progress} of ${args.files.length} files...`);
+        })));
         commitTreeSha = await octokit.rest.git.createTree({
             ...repository,
             base_tree: args.parents[0],
             tree: commitTreeBlobs,
         }).then(({ data }) => data.sha);
-        console.debug('  commit tree', '->', commitTreeSha);
+        console.log('Creating commit tree done.', commitTreeSha);
     }
+    console.log('Creating commit...');
     const commit = await octokit.rest.git.createCommit({
         ...repository,
         parents: args.parents,
@@ -38417,7 +38425,7 @@ async function createCommit(octokit, repository, args) {
         // committer.name:  GitHub
         // committer.email: noreply@github.com
     }).then(({ data }) => data);
-    console.debug('commit', '->', commit.sha);
+    console.log('Creating commit done.', commit.sha);
     return commit;
 }
 /**
@@ -38494,6 +38502,7 @@ const action = () => run(async () => {
         '-c', `user.email=${bot.email}`,
         'commit', ...commitArgs,
     ]).then((result) => console.info(result.stdout + '\n'));
+    startGroup('Creating signed commit via GitHup API ...');
     let throttlingRetryCount = -1;
     const octokit = getOctokit(input.token, {
         throttle: {
@@ -38516,7 +38525,6 @@ const action = () => run(async () => {
     const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
-    startGroup('Creating signed commit via GitHup API ...');
     const githubCommit = await createCommit(octokit, repository, {
         subject: headCommit.subject,
         body: headCommit.body,
@@ -38529,9 +38537,10 @@ const action = () => run(async () => {
             loadContent: async () => readFile(file.path, headCommit.sha),
         })),
     });
-    info('Replace local commit with signed commit ...');
-    await actions_exec('git fetch', [input.remoteName, githubCommit.sha]);
-    await actions_exec('git reset', [githubCommit.sha]);
+    endGroup();
+    startGroup('Replace local commit with signed commit ...');
+    await actions_exec('git fetch', [input.remoteName, githubCommit.sha], { silent: false });
+    await actions_exec('git reset', [githubCommit.sha], { silent: false });
     endGroup();
     setOutput('commit', githubCommit.sha);
 });

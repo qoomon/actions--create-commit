@@ -18,51 +18,58 @@ export async function createCommit(
 ) {
   let commitTreeSha = args.tree
   if (args.files.length > 0) {
-    console.debug('  creating commit tree...')
-    const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => {
+    console.log('Creating commit tree...')
+    let progress = 0
+    const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => (async function(){
+        switch (status) {
+          case 'A':
+          case 'M': {
+            const content = await loadContent()
 
-      switch (status) {
-        case 'A':
-        case 'M': {
-          console.debug('     ', path, '- create blob via GitHub API...')
-
-          const content = await loadContent()
-
-          const blob = await octokit.rest.git.createBlob({
-            ...repository,
-            content: content.toString('base64'),
-            encoding: 'base64',
-          }).then(({data}) => data)
-
-          console.debug('     ', path, '- ...blob created.')
-          return <TreeFile>{
-            path,
-            mode,
-            sha: blob.sha,
-            type: 'blob',
+            const blob = await octokit.rest.git.createBlob({
+              ...repository,
+              content: content.toString('base64'),
+              encoding: 'base64',
+            })
+                .then(({data}) => data)
+                .catch((error) => {
+                  console.debug('Creating blob failed for file', path, 'with error', error)
+                  throw error
+                })
+            return <TreeFile>{
+              path,
+              mode,
+              sha: blob.sha,
+              type: 'blob',
+            }
           }
+          case 'D':
+            return <TreeFile>{
+              path,
+              mode: '100644',
+              sha: null,
+              type: 'blob',
+            }
+          default:
+            throw new Error(`Unexpected file status: ${status}`)
         }
-        case 'D':
-          console.debug('     ', path)
-          return {
-            path,
-            mode: '100644',
-            sha: null,
-            type: 'blob',
-          } satisfies TreeFile
-        default:
-          throw new Error(`Unexpected file status: ${status}`)
-      }
-    }))
+      })().finally(() => {
+        progress++;
+        // log progress
+        console.log(`${progress} of ${args.files.length} files...`)
+      })
+    ))
 
     commitTreeSha = await octokit.rest.git.createTree({
       ...repository,
       base_tree: args.parents[0],
       tree: commitTreeBlobs,
     }).then(({data}) => data.sha)
-    console.debug('  commit tree', '->', commitTreeSha)
+
+    console.log('Creating commit tree done.', commitTreeSha)
   }
 
+  console.log('Creating commit...')
   const commit = await octokit.rest.git.createCommit({
     ...repository,
     parents: args.parents,
@@ -83,7 +90,7 @@ export async function createCommit(
     // committer.email: noreply@github.com
 
   }).then(({data}) => data)
-  console.debug('commit', '->', commit.sha)
+  console.log('Creating commit done.', commit.sha)
 
   return commit
 }
