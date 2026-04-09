@@ -1,7 +1,4 @@
 import * as github from '@actions/github'
-import pLimit from 'p-limit'
-
-const octokitLimit = pLimit(10)
 
 /**
  * Create a commit authored and committed by octokit token identity.
