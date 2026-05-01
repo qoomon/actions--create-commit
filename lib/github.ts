@@ -58,11 +58,11 @@ export async function createCommit(
     ))
 
     const chunkSize = 100
+    const chunkCount = Math.ceil(commitTreeBlobs.length / chunkSize)
     let currentBaseTree = args.parents[0]
     for (let i = 0; i < commitTreeBlobs.length; i += chunkSize) {
       const chunk = commitTreeBlobs.slice(i, i + chunkSize)
       const chunkIndex = Math.floor(i / chunkSize) + 1
-      const chunkCount = Math.ceil(commitTreeBlobs.length / chunkSize)
       console.log(`Creating commit tree chunk ${chunkIndex} of ${chunkCount}...`)
       currentBaseTree = await octokit.rest.git.createTree({
         ...repository,
