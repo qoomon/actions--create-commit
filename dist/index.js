@@ -38203,7 +38203,7 @@ async function getCachedObjectSha(path) {
 async function createCommit(octokit, repository, args) {
     let commitTreeSha = args.tree;
     if (args.files.length > 0) {
-        console.log('Creating commit tree...');
+        console.log('Creating blobs...');
         let progress = 0;
         const commitTreeBlobs = await Promise.all(args.files.map(async ({ path, mode, status, loadContent }) => (async function () {
             switch (status) {
@@ -38240,21 +38240,22 @@ async function createCommit(octokit, repository, args) {
         })().finally(() => {
             progress++;
             // log progress
-            console.log(`${progress} of ${args.files.length} files...`);
+            console.log(`  ${progress} of ${args.files.length} files...`);
         })));
+        console.log('Creating commit tree...');
         const chunkSize = 100;
-        let currentBaseTree = args.parents[0];
         for (let i = 0; i < commitTreeBlobs.length; i += chunkSize) {
             const chunk = commitTreeBlobs.slice(i, i + chunkSize);
-            console.log(`Creating commit tree (${i + chunk.length} of ${commitTreeBlobs.length})...`);
-            currentBaseTree = await octokit.rest.git.createTree({
+            commitTreeSha = await octokit.rest.git.createTree({
                 ...repository,
-                base_tree: currentBaseTree,
+                base_tree: commitTreeSha,
                 tree: chunk,
-            }).then(({ data }) => data.sha);
+            }).then(({ data }) => data.sha).finally(() => {
+                progress++;
+                // log progress
+                console.log(`  ${progress} of ${args.files.length} blobs...`);
+            });
         }
-        commitTreeSha = currentBaseTree;
-        console.log('Creating commit tree done.', commitTreeSha);
     }
     console.log('Creating commit...');
     const commit = await octokit.rest.git.createCommit({
