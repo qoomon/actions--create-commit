@@ -38244,7 +38244,6 @@ async function createCommit(octokit, repository, args) {
         })));
         console.log('Creating commit tree...');
         const chunkSize = 100;
-        commitTreeSha = args.parents[0];
         for (let i = 0; i < commitTreeBlobs.length; i += chunkSize) {
             const chunk = commitTreeBlobs.slice(i, i + chunkSize);
             commitTreeSha = await octokit.rest.git.createTree({
