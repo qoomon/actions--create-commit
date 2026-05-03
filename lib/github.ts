@@ -59,12 +59,12 @@ export async function createCommit(
     console.log('Creating commit tree...')
     const chunkSize = 100
 
-    let chunkBaseTree: string | undefined = args.parents[0]
+    let chunkBaseTree = args.parents[0]
     for (let i = 0; i < commitTreeBlobs.length; i += chunkSize) {
       const chunk = commitTreeBlobs.slice(i, i + chunkSize)
       chunkBaseTree = commitTreeSha = await octokit.rest.git.createTree({
         ...repository,
-        ...(chunkBaseTree !== undefined ? {base_tree: chunkBaseTree} : {}),
+        base_tree: chunkBaseTree,
         tree: chunk,
       }).then(({data}) => data.sha).finally(() => {
         progress++;
