@@ -63,7 +63,7 @@ export async function createCommit(
       const chunk = commitTreeBlobs.slice(i, i + chunkSize)
       commitTreeSha = await octokit.rest.git.createTree({
         ...repository,
-        base_tree: commitTreeSha,
+        ...(commitTreeSha !== undefined ? {base_tree: commitTreeSha} : {}),
         tree: chunk,
       }).then(({data}) => data.sha).finally(() => {
         progress++;
@@ -71,6 +71,10 @@ export async function createCommit(
         console.log(`  ${progress} of ${args.files.length} blobs...`)
       })
     }
+  }
+
+  if (commitTreeSha === undefined) {
+    throw new Error('Could not determine commit tree SHA: no parent tree SHA was provided and no files were given to create a new tree')
   }
 
   console.log('Creating commit...')
@@ -119,7 +123,7 @@ export type CreateCommitArgs = {
   subject: string
   body: string
   parents: string[]
-  tree: string,
+  tree: string | undefined,
   files: {
     path: string
     mode: '100644' | '100755' | '040000' | '160000' | '120000' | string

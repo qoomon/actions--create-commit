@@ -38248,7 +38248,7 @@ async function createCommit(octokit, repository, args) {
             const chunk = commitTreeBlobs.slice(i, i + chunkSize);
             commitTreeSha = await octokit.rest.git.createTree({
                 ...repository,
-                base_tree: commitTreeSha,
+                ...(commitTreeSha !== undefined ? { base_tree: commitTreeSha } : {}),
                 tree: chunk,
             }).then(({ data }) => data.sha).finally(() => {
                 progress++;
@@ -38256,6 +38256,9 @@ async function createCommit(octokit, repository, args) {
                 console.log(`  ${progress} of ${args.files.length} blobs...`);
             });
         }
+    }
+    if (commitTreeSha === undefined) {
+        throw new Error('Could not determine commit tree SHA: no parent tree SHA was provided and no files were given to create a new tree');
     }
     console.log('Creating commit...');
     const commit = await octokit.rest.git.createCommit({
@@ -38381,10 +38384,13 @@ const action = () => run(async () => {
     const headCommit = await getCommitDetails('HEAD');
     const repositoryRemoteUrl = await getRemoteUrl(input.remoteName);
     const repository = parseRepositoryFromUrl(repositoryRemoteUrl);
+    const parentCommit = headCommit.parents.length > 0
+        ? await getCommitDetails(headCommit.parents[0])
+        : null;
     const githubCommit = await createCommit(octokit, repository, {
         subject: headCommit.subject,
         body: headCommit.body,
-        tree: headCommit.tree,
+        tree: parentCommit?.tree,
         parents: headCommit.parents,
         files: headCommit.files.map((file) => ({
             path: file.path,
