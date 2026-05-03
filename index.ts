@@ -93,13 +93,10 @@ export const action = () => run(async () => {
   const headCommit = await getCommitDetails('HEAD')
   const repositoryRemoteUrl = await getRemoteUrl(input.remoteName)
   const repository = parseRepositoryFromUrl(repositoryRemoteUrl)
-  const parentCommit = headCommit.parents.length > 0
-      ? await getCommitDetails(headCommit.parents[0])
-      : null
   const githubCommit = await createCommit(octokit, repository, {
     subject: headCommit.subject,
     body: headCommit.body,
-    tree: parentCommit?.tree,
+    tree: headCommit.tree,
     parents: headCommit.parents,
     files: headCommit.files.map((file) => ({
       path: file.path,
