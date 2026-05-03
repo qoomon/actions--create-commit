@@ -16,7 +16,7 @@ export async function createCommit(
   let commitTreeSha = args.tree
   if (args.files.length > 0) {
     console.log('Creating blobs...')
-    let progress = 0
+    let createBlobProgress = 0
     const commitTreeBlobs = await Promise.all(args.files.map(async ({path, mode, status, loadContent}) => (async function(){
         switch (status) {
           case 'A':
@@ -51,9 +51,9 @@ export async function createCommit(
             throw new Error(`Unexpected file status: ${status}`)
         }
       })().finally(() => {
-        progress++;
+      createBlobProgress++;
         // log progress
-        console.log(`  ${progress} of ${args.files.length} files...`)
+        console.log(`  ${createBlobProgress} of ${args.files.length} files...`)
       })
     ))
     console.log('Creating commit tree...')
@@ -67,9 +67,8 @@ export async function createCommit(
         base_tree: chunkBaseTree,
         tree: chunk,
       }).then(({data}) => data.sha).finally(() => {
-        progress++;
         // log progress
-        console.log(`  ${progress} of ${args.files.length} blobs...`)
+        console.log(`  ${i + chunkSize} of ${args.files.length} blobs...`)
       })
     }
   }
