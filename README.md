@@ -1,4 +1,4 @@
-# Create Commit &nbsp; [![starline](https://starlines.qoo.monster/assets/qoomon/actions--create-commit)](https://github.com/qoomon/starline)
+# Create Commit &nbsp; [![starline](https://raw.githubusercontent.com/qoomon/qoomon/refs/heads/main/starlines/qoomon/actions--create-commit/starline.svg)](https://github.com/qoomon/starlines)
 [![Actions](https://img.shields.io/badge/qoomon-GitHub%20Actions-blue)](https://github.com/qoomon/actions)
 
 This action will create a new commit via GitHub API, committer and author are related to given token identity.
