@@ -14,7 +14,7 @@
     "@octokit/plugin-throttling": "^11.0.3"
   },
   "devDependencies": {
-    "@eslint/js": "^8.56.0",
+    "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.32.0",
     "@vercel/ncc": "^0.38.4",
